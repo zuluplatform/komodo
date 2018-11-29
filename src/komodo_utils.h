@@ -1781,7 +1781,7 @@ void komodo_args(char *argv0)
 				{
 						// This part might need changing? I am not 100% sure..
 						// Stream cant work with anything except, supply, name, and ac_pubkey.
-						if ( ASSETCHAINS_COMMISSION != 0 || ASSETCHAINS_ENDSUBSIDY != 0 || ASSETCHAINS_REWARD != 0 || ASSETCHAINS_HALVING != 0 || ASSETCHAINS_DECAY != 0 || ASSETCHAINS_PRIVATE != 0 ))
+						if ( ASSETCHAINS_COMMISSION != 0 || ASSETCHAINS_ENDSUBSIDY != 0 || ASSETCHAINS_REWARD != 0 || ASSETCHAINS_HALVING != 0 || ASSETCHAINS_DECAY != 0 || ASSETCHAINS_PRIVATE != 0 )
 						{
 								printf("ASSETCHAINS_STREAM cannot be used with:\n ASSETCHAINS_COMMISSION \n ASSETCHAINS_ENDSUBSIDY\n ASSETCHAINS_REWARD\n ASSETCHAINS_HALVING\n ASSETCHAINS_DECAY\n ASSETCHAINS_PRIVATE\n");
 								exit(0);
