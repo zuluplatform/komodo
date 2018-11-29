@@ -167,7 +167,7 @@ try_again:
     curl_handle = curl_easy_init();
     init_string(&s);
     headers = curl_slist_append(0,"Expect:");
-    
+
     curl_easy_setopt(curl_handle,CURLOPT_USERAGENT,"mozilla/4.0");//"Mozilla/4.0 (compatible; )");
     curl_easy_setopt(curl_handle,CURLOPT_HTTPHEADER,	headers);
     curl_easy_setopt(curl_handle,CURLOPT_URL,		url);
@@ -196,7 +196,7 @@ try_again:
                 bracket0 = (char *)"[";
                 bracket1 = (char *)"]";
             }
-            
+
             databuf = (char *)malloc(256 + strlen(command) + strlen(params));
             sprintf(databuf,"{\"id\":\"jl777\",\"method\":\"%s\",\"params\":%s%s%s}",command,bracket0,params,bracket1);
             //printf("url.(%s) userpass.(%s) databuf.(%s)\n",url,userpass,databuf);
@@ -236,7 +236,7 @@ try_again:
         free(s.ptr);
         sleep((1<<numretries));
         goto try_again;
-        
+
     }
     else
     {
@@ -522,7 +522,7 @@ int32_t komodo_verifynotarization(char *symbol,char *dest,int32_t height,int32_t
  }
  return(hash);
  }
- 
+
  uint256 _komodo_getblockhash(int32_t height);*/
 
 uint64_t komodo_seed(int32_t height)
@@ -1106,17 +1106,22 @@ int32_t komodo_validate_interest(const CTransaction &tx,int32_t txheight,uint32_
 
 /*
  komodo_checkPOW (fast) is called early in the process and should only refer to data immediately available. it is a filter to prevent bad blocks from going into the local DB. The more blocks we can filter out at this stage, the less junk in the local DB that will just get purged later on.
- 
+
  komodo_checkPOW (slow) is called right before connecting blocks so all prior blocks can be assumed to be there and all checks must pass
- 
+
  commission must be in coinbase.vout[1] and must be >= 10000 sats
  PoS stake must be without txfee and in the last tx in the block at vout[0]
  */
+ extern int32_t ASSETCHAINS_STREAM;
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
 uint64_t komodo_commission(const CBlock *pblock,int32_t height)
 {
+    // Return 10000 if streamer chain, uses this to fund its miner.
+    if ( ASSETCHAINS_STREAM != 0 )
+        return(10000);
+
     int32_t i,j,n=0,txn_count; int64_t nSubsidy; uint64_t commission,total = 0;
     txn_count = pblock->vtx.size();
     if ( ASSETCHAINS_FOUNDERS != 0 )
@@ -1545,7 +1550,7 @@ bool verusCheckPOSBlock(int32_t slowflag, CBlock *pblock, int32_t height)
                 {
                     fprintf(stderr,"ERROR: chain not fully loaded or invalid PoS block %s - no past block found\n",blkHash.ToString().c_str());
                 }
-                else 
+                else
 #ifndef KOMODO_ZCASH
                 if (!GetTransaction(txid, tx, Params().GetConsensus(), blkHash, true))
 #else
@@ -1578,7 +1583,7 @@ bool verusCheckPOSBlock(int32_t slowflag, CBlock *pblock, int32_t height)
                     {
                         BlockMap::const_iterator it = mapBlockIndex.find(blkHash);
                         if ((it == mapBlockIndex.end()) ||
-                            !(pastBlockIndex = it->second) || 
+                            !(pastBlockIndex = it->second) ||
                             (height - pastBlockIndex->GetHeight()) < VERUS_MIN_STAKEAGE)
                         {
                             fprintf(stderr,"ERROR: invalid PoS block %s - stake source too new or not found\n",blkHash.ToString().c_str());
@@ -1665,7 +1670,7 @@ bool verusCheckPOSBlock(int32_t slowflag, CBlock *pblock, int32_t height)
 int64_t komodo_checkcommission(CBlock *pblock,int32_t height)
 {
     int64_t checktoshis=0; uint8_t *script,scripthex[8192]; int32_t scriptlen,matched = 0;
-    if ( ASSETCHAINS_COMMISSION != 0 )
+    if ( ASSETCHAINS_COMMISSION != 0 || ASSETCHAINS_STREAM != 0 )
     {
         checktoshis = komodo_commission(pblock,height);
         //fprintf(stderr,"height.%d commission %.8f\n",height,(double)checktoshis/COIN);
@@ -1695,7 +1700,7 @@ int64_t komodo_checkcommission(CBlock *pblock,int32_t height)
                 //    fprintf(stderr,"%02x",script[i]);
                 //fprintf(stderr," payment to wrong pubkey scriptlen.%d, scriptpub[%d]\n",scriptlen,(int32_t)ASSETCHAINS_SCRIPTPUB.size()/2);
                 return(-1);
-         
+
             }
             if ( pblock->vtx[0].vout[1].nValue != checktoshis )
             {
@@ -1822,6 +1827,20 @@ int32_t komodo_checkPOW(int32_t slowflag,CBlock *pblock,int32_t height)
         {
             if ( komodo_checkcommission(pblock,height) < 0 )
                 return(-1);
+        }
+        if ( ASSETCHAINS_STREAM != 0 && height > 128 )
+        {
+            int lasttx = ( pblock->vtx.size() -1 );
+            if ( lasttx == 0 )
+                return(-1);
+            uint256 hash; CTransaction tx;
+            if (GetTransaction(pblock->vtx[lasttx].vin[0].prevout.hash,tx,hash,false))
+            {
+                script = (uint8_t *)tx.vout[pblock->vtx[lasttx].vin[0].prevout.n].scriptPubKey.data();
+                if ( script[0] != 33 || script[34] != OP_CHECKSIG || memcmp(script+1,ASSETCHAINS_OVERRIDE_PUBKEY33,33) != 0 ) {
+                    return(-1);
+                }
+            }
         }
     }
     //fprintf(stderr,"komodo_checkPOW possible.%d slowflag.%d ht.%d notaryid.%d failed.%d\n",possible,slowflag,height,notaryid,failed);

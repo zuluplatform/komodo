@@ -1068,7 +1068,7 @@ uint64_t komodo_block_prg(uint32_t nHeight)
 
 // given a block height, this returns the unlock time for that block height, derived from
 // the ASSETCHAINS_MAGIC number as well as the block height, providing different random numbers
-// for corresponding blocks across chains, but the same sequence in each chain 
+// for corresponding blocks across chains, but the same sequence in each chain
 int64_t komodo_block_unlocktime(uint32_t nHeight)
 {
     uint64_t fromTime, toTime, unlocktime;
@@ -1573,8 +1573,13 @@ uint64_t komodo_ac_block_subsidy(int nHeight)
 
     // check for backwards compat, older chains with no explicit rewards had 0.0001 block reward
     if ( ASSETCHAINS_ENDSUBSIDY[0] == 0 && ASSETCHAINS_REWARD[0] == 0 )
-        subsidy = 10000;
-    else if ( (ASSETCHAINS_ENDSUBSIDY[0] == 0 && ASSETCHAINS_REWARD[0] != 0) || ASSETCHAINS_ENDSUBSIDY[0] != 0 )
+		{
+				if ( ASSETCHAINS_STREAM != 0 && nHeight > 128 )
+						subsidy = 0;
+				else
+						subsidy = 10000;
+		}
+		else if ( (ASSETCHAINS_ENDSUBSIDY[0] == 0 && ASSETCHAINS_REWARD[0] != 0) || ASSETCHAINS_ENDSUBSIDY[0] != 0 )
     {
         // if we have an end block in the first era, find our current era
         if ( ASSETCHAINS_ENDSUBSIDY[0] != 0 )
@@ -1604,7 +1609,7 @@ uint64_t komodo_ac_block_subsidy(int nHeight)
                                 subsidyDifference = subsidy;
                             }
                             else
-                            {    
+                            {
                                 // Ex: -ac_eras=3 -ac_reward=0,384,24 -ac_end=1440,260640,0 -ac_halving=1,1440,2103840 -ac_decay 100000000,97750000,0
                                 subsidyDifference = subsidy - ASSETCHAINS_REWARD[curEra + 1];
                                 if (subsidyDifference < 0)
@@ -1770,6 +1775,28 @@ void komodo_args(char *argv0)
         ASSETCHAINS_COMMISSION = GetArg("-ac_perc",0);
         ASSETCHAINS_OVERRIDE_PUBKEY = GetArg("-ac_pubkey","");
         ASSETCHAINS_SCRIPTPUB = GetArg("-ac_script","");
+				ASSETCHAINS_STREAM = GetArg("-ac_stream",0);
+
+				if ( ASSETCHAINS_STREAM != 0 )
+				{
+						// This part might need changing? I am not 100% sure..
+						// Stream cant work with anything except, supply, name, and ac_pubkey.
+						if ( ASSETCHAINS_COMMISSION != 0 || ASSETCHAINS_ENDSUBSIDY != 0 || ASSETCHAINS_REWARD != 0 || ASSETCHAINS_HALVING != 0 || ASSETCHAINS_DECAY != 0 || ASSETCHAINS_PRIVATE != 0 ))
+						{
+								printf("ASSETCHAINS_STREAM cannot be used with:\n ASSETCHAINS_COMMISSION \n ASSETCHAINS_ENDSUBSIDY\n ASSETCHAINS_REWARD\n ASSETCHAINS_HALVING\n ASSETCHAINS_DECAY\n ASSETCHAINS_PRIVATE\n");
+								exit(0);
+						}
+						if ( strlen(ASSETCHAINS_OVERRIDE_PUBKEY.c_str()) != 66 )
+						{
+								printf("ASSETCHAINS_STREAM needs ASSETCHAINS_OVERRIDE_PUBKEY! \n");
+								exit(0);
+						}
+						if ( ASSETCHAINS_SUPPLY < 1000000 ) {
+								 ASSETCHAINS_SUPPLY = 1000000;
+								 printf("ASSETCHAINS_STREAM needs coins, supply set at 1,000,000. \n");
+						}
+				}
+
         if ( (ASSETCHAINS_STAKED= GetArg("-ac_staked",0)) > 100 )
             ASSETCHAINS_STAKED = 100;
 
@@ -1777,7 +1804,7 @@ void komodo_args(char *argv0)
         // other values
         if ( (ASSETCHAINS_LWMAPOS = GetArg("-ac_veruspos",0)) != 0 )
             ASSETCHAINS_LWMAPOS = 50;
-        
+
         ASSETCHAINS_SAPLING = GetArg("-ac_sapling", -1);
         if (ASSETCHAINS_SAPLING == -1)
         {
@@ -1801,10 +1828,10 @@ void komodo_args(char *argv0)
                     ASSETCHAINS_COMMISSION = 53846154; // maps to 35%
                     printf("ASSETCHAINS_COMMISSION defaulted to 35%% when founders reward active\n");
                 }
-                else
+								else if ( ASSETCHAINS_STREAM == 0 )
                 {
                     ASSETCHAINS_OVERRIDE_PUBKEY.clear();
-                    printf("-ac_perc must be set with -ac_pubkey\n");
+                    printf("-ac_perc or -ac_stream must be set with -ac_pubkey\n");
                 }
             }
         }
@@ -2051,4 +2078,3 @@ void komodo_prefetch(FILE *fp)
     }
     fseek(fp,fpos,SEEK_SET);
 }
-
