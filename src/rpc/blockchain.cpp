@@ -444,9 +444,9 @@ UniValue getdatafromblock(const UniValue& params, bool fHelp)
               BlockMap::iterator mi = mapBlockIndex.find(hash);
               if (mi != mapBlockIndex.end() && (*mi).second) {
                   CBlockIndex* pindex = (*mi).second;
-                  printf("found block height: %d\n",pindex->nHeight);
+                  printf("found block height: %d\n",pindex->GetHeight());
                   if (chainActive.Contains(pindex)) {
-                      firsttxnHeight = pindex->nHeight;
+                      firsttxnHeight = pindex->GetHeight();
                   }
               }
           }
