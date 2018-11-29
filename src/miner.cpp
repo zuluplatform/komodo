@@ -1201,19 +1201,14 @@ void static BitcoinMiner_noeq()
             {
                 if ( ASSETCHAINS_REWARD[0] == 0 && !ASSETCHAINS_LASTERA )
                 {
-                    int minvoutsize = 1;
-                    int minvtxsize = 1;
-                    if ( ASSETCHAINS_STREAM != 0 )
-                        minvoutsize = 2;
-                        minvtxsize = 2;
-                    if ( pblock->vtx.size() == minvtxsize && pblock->vtx[0].vout.size() == minvoutsize && Mining_height > ASSETCHAINS_MINHEIGHT )
+                    if ( pblock->vtx.size() == 1 && pblock->vtx[0].vout.size() == 1 && Mining_height > ASSETCHAINS_MINHEIGHT )
                     {
                         static uint32_t counter;
                         if ( counter++ < 10 )
                             fprintf(stderr,"skip generating %s on-demand block, no tx avail\n",ASSETCHAINS_SYMBOL);
                         sleep(10);
                         continue;
-                    } else fprintf(stderr,"%s tx.%d vouts.%d mining.%d vs %d\n",ASSETCHAINS_SYMBOL,(int32_t)pblock->vtx.size(),(int32_t)pblock->vtx[0].vout.size(),Mining_height,ASSETCHAINS_MINHEIGHT);
+                    } else fprintf(stderr,"%s vouts.%d mining.%d vs %d\n",ASSETCHAINS_SYMBOL,(int32_t)pblock->vtx[0].vout.size(),Mining_height,ASSETCHAINS_MINHEIGHT);
                 }
             }
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
@@ -1501,14 +1496,19 @@ void static BitcoinMiner()
             {
                 if ( ASSETCHAINS_REWARD[0] == 0 && !ASSETCHAINS_LASTERA )
                 {
-                    if ( pblock->vtx.size() == 1 && pblock->vtx[0].vout.size() == 1 && Mining_height > ASSETCHAINS_MINHEIGHT )
+                    int minvoutsize = 1;
+                    int minvtxsize = 1;
+                    if ( ASSETCHAINS_STREAM != 0 )
+                        minvoutsize = 2;
+                        minvtxsize = 2;
+                    if ( pblock->vtx.size() == minvtxsize && pblock->vtx[0].vout.size() == minvoutsize && Mining_height > ASSETCHAINS_MINHEIGHT )
                     {
                         static uint32_t counter;
                         if ( counter++ < 10 )
                             fprintf(stderr,"skip generating %s on-demand block, no tx avail\n",ASSETCHAINS_SYMBOL);
                         sleep(10);
                         continue;
-                    } else fprintf(stderr,"%s vouts.%d mining.%d vs %d\n",ASSETCHAINS_SYMBOL,(int32_t)pblock->vtx[0].vout.size(),Mining_height,ASSETCHAINS_MINHEIGHT);
+                    } else fprintf(stderr,"%s tx.%d vouts.%d mining.%d vs %d\n",ASSETCHAINS_SYMBOL,(int32_t)pblock->vtx.size(),(int32_t)pblock->vtx[0].vout.size(),Mining_height,ASSETCHAINS_MINHEIGHT);
                 }
             }
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
