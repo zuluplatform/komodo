@@ -298,6 +298,7 @@ static const CRPCCommand vRPCCommands[] =
     { "blockchain",         "getbestblockhash",       &getbestblockhash,       true  },
     { "blockchain",         "getblockcount",          &getblockcount,          true  },
     { "blockchain",         "getblock",               &getblock,               true  },
+    { "blockchain",         "getdatafromblock",       &getdatafromblock,       true  },
     { "blockchain",         "getblockdeltas",         &getblockdeltas,         false },
     { "blockchain",         "getblockhashes",         &getblockhashes,         true  },
     { "blockchain",         "getblockhash",           &getblockhash,           true  },
@@ -364,16 +365,16 @@ static const CRPCCommand vRPCCommands[] =
 
     // auction
     { "auction",       "auctionaddress",    &auctionaddress,  true },
-    
+
     // lotto
     { "lotto",       "lottoaddress",    &lottoaddress,  true },
-    
+
     // fsm
     { "FSM",       "FSMaddress",   &FSMaddress, true },
     { "FSM", "FSMcreate",    &FSMcreate,  true },
     { "FSM",   "FSMlist",      &FSMlist,    true },
     { "FSM",   "FSMinfo",      &FSMinfo,    true },
-    
+
     // rewards
     { "rewards",       "rewardslist",       &rewardslist,     true },
     { "rewards",       "rewardsinfo",       &rewardsinfo,     true },
@@ -382,7 +383,7 @@ static const CRPCCommand vRPCCommands[] =
     { "rewards",       "rewardslock",       &rewardslock,     true },
     { "rewards",       "rewardsunlock",     &rewardsunlock,   true },
     { "rewards",       "rewardsaddress",    &rewardsaddress,  true },
-    
+
     // faucet
     { "faucet",       "faucetinfo",      &faucetinfo,         true },
     { "faucet",       "faucetfund",      &faucetfund,         true },
@@ -399,7 +400,7 @@ static const CRPCCommand vRPCCommands[] =
     { "channels",       "channelspayment",   &channelspayment,   true },
     { "channels",       "channelsclose",     &channelsclose,      true },
     { "channels",       "channelsrefund",    &channelsrefund,    true },
-    
+
     // Oracles
     { "oracles",       "oraclesaddress",   &oraclesaddress,     true },
     { "oracles",       "oracleslist",      &oracleslist,        true },
