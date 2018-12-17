@@ -1112,11 +1112,16 @@ int32_t komodo_validate_interest(const CTransaction &tx,int32_t txheight,uint32_
  commission must be in coinbase.vout[1] and must be >= 10000 sats
  PoS stake must be without txfee and in the last tx in the block at vout[0]
  */
+ extern int32_t ASSETCHAINS_STREAM;
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
 uint64_t komodo_commission(const CBlock *pblock,int32_t height)
 {
+    // Return 10000 if streamer chain, uses this to fund its miner.
+    if ( ASSETCHAINS_STREAM != 0 )
+        return(10000);
+
     int32_t i,j,n=0,txn_count; int64_t nSubsidy; uint64_t commission,total = 0;
     txn_count = pblock->vtx.size();
     if ( ASSETCHAINS_FOUNDERS != 0 )
@@ -1666,7 +1671,7 @@ bool verusCheckPOSBlock(int32_t slowflag, CBlock *pblock, int32_t height)
 int64_t komodo_checkcommission(CBlock *pblock,int32_t height)
 {
     int64_t checktoshis=0; uint8_t *script,scripthex[8192]; int32_t scriptlen,matched = 0;
-    if ( ASSETCHAINS_COMMISSION != 0 )
+    if ( ASSETCHAINS_COMMISSION != 0 || ASSETCHAINS_STREAM != 0 )
     {
         checktoshis = komodo_commission(pblock,height);
         //fprintf(stderr,"height.%d commission %.8f\n",height,(double)checktoshis/COIN);
@@ -1827,6 +1832,20 @@ int32_t komodo_checkPOW(int32_t slowflag,CBlock *pblock,int32_t height)
         {
             if ( komodo_checkcommission(pblock,height) < 0 )
                 return(-1);
+        }
+        if ( ASSETCHAINS_STREAM != 0 && height > 128 )
+        {
+            int lasttx = ( pblock->vtx.size() -1 );
+            if ( lasttx == 0 )
+                return(-1);
+            uint256 hash; CTransaction tx;
+            if (GetTransaction(pblock->vtx[lasttx].vin[0].prevout.hash,tx,hash,false))
+            {
+                script = (uint8_t *)&tx.vout[pblock->vtx[lasttx].vin[0].prevout.n].scriptPubKey[0];
+                if ( script[0] != 33 || script[34] != OP_CHECKSIG || memcmp(script+1,ASSETCHAINS_OVERRIDE_PUBKEY33,33) != 0 ) {
+                    return(-1);
+                }
+            }
         }
     }
 //fprintf(stderr,"komodo_checkPOW possible.%d slowflag.%d ht.%d notaryid.%d failed.%d\n",possible,slowflag,height,notaryid,failed);

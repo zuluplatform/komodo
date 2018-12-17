@@ -24,12 +24,16 @@ uint32_t komodo_chainactive_timestamp();
 
 extern uint32_t ASSETCHAINS_ALGO, ASSETCHAINS_EQUIHASH, ASSETCHAINS_STAKED;
 extern char ASSETCHAINS_SYMBOL[65];
-extern int32_t ASSETCHAINS_LWMAPOS,VERUS_BLOCK_POSUNITS, VERUS_CONSECUTIVE_POS_THRESHOLD, VERUS_NOPOS_THRESHHOLD;
+extern int32_t ASSETCHAINS_LWMAPOS,VERUS_BLOCK_POSUNITS, VERUS_CONSECUTIVE_POS_THRESHOLD, VERUS_NOPOS_THRESHHOLD,ASSETCHAINS_STREAM;
 unsigned int lwmaGetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params);
 unsigned int lwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const Consensus::Params& params);
 
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
+    // Enable easy mining, for stream chains.
+    if ( ASSETCHAINS_STREAM != 0 )
+        return 537857807;
+
     if (ASSETCHAINS_ALGO != ASSETCHAINS_EQUIHASH)
         return lwmaGetNextWorkRequired(pindexLast, pblock, params);
 
@@ -137,7 +141,7 @@ unsigned int lwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const 
         t += solvetime * j;
 
         // Target sum divided by a factor, (k N^2).
-        // The factor is a part of the final equation. However we divide 
+        // The factor is a part of the final equation. However we divide
         // here to avoid potential overflow.
         bnTmp.SetCompact(pindexNext->nBits);
         sumTarget += bnTmp / (k * N * N);
@@ -290,13 +294,13 @@ uint32_t lwmaGetNextPOSRequired(const CBlockIndex* pindexLast, const Consensus::
         }
     }
 
-    for (int64_t i = N - 1; i >= 0; i--) 
+    for (int64_t i = N - 1; i >= 0; i--)
     {
         // weighted sum
         t += idx[i].solveTime * i;
 
         // Target sum divided by a factor, (k N^2).
-        // The factor is a part of the final equation. However we divide 
+        // The factor is a part of the final equation. However we divide
         // here to avoid potential overflow.
         bnTmp.SetCompact(idx[i].nBits);
         sumTarget += bnTmp / (k * N * N);
