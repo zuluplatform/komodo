@@ -5483,6 +5483,10 @@ bool ProcessNewBlock(bool from_miner,int32_t height,CValidationState &state, CNo
         bool fRequested = MarkBlockAsReceived(hash);
         if ( pfrom && !fRequested && vNodes.size() > 1 )
         {
+            if ( pfrom->nBlocksinARow < 0 )
+                pfrom->nBlocksinARow = 0;
+            if ( pfrom->nBlocksinARow2 < 0 )
+                pfrom->nBlocksinARow2 = 0;
             pfrom->nBlocksinARow += 1;
             if ( pfrom->nBlocksinARow >= 10 )
             {
