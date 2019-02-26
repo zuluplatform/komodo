@@ -5332,7 +5332,7 @@ bool AcceptBlock(int32_t *futureblockp,CBlock& block, CValidationState& state, C
     int nHeight = pindex->GetHeight();
     // Temp File fix. LABS has been using this for ages with no bad effects.
     // Disabled here. Set use tmp to whatever you need to use this for. 
-    int32_t usetmp = 0;
+    int32_t usetmp = 1;
     if ( IsInitialBlockDownload() )
         usetmp = 0;
 
@@ -5472,7 +5472,7 @@ bool ProcessNewBlock(bool from_miner,int32_t height,CValidationState &state, CNo
         bool fRequested = MarkBlockAsReceived(hash);
         // Test thing on LABS to test viability of rejecting a node pushing a chain.
         // Supposed to stop malicious forks being pushed. Untested. Disabled incase of problems it may cause.
-        if ( 0 && pfrom && !fRequested && vNodes.size() > 1 )
+        if ( pfrom && !fRequested && vNodes.size() > 1 )
         {
             if ( pfrom->nBlocksinARow < 0 )
                 pfrom->nBlocksinARow = 0;
