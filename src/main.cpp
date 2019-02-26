@@ -19,7 +19,6 @@
  ******************************************************************************/
 
 #include "main.h"
-#include "notaries_staked.h"
 #include "sodium.h"
 
 #include "addrman.h"
@@ -1267,35 +1266,23 @@ extern uint8_t NUM_NOTARIES;
 
 int32_t komodo_isnotaryvout(char *coinaddr) // from ac_private chains only
 {
-  if ( is_STAKED(ASSETCHAINS_SYMBOL) != 0 )
-  {
-      if ( NOTARYADDRS[0][0] != 0 && NUM_NOTARIES != 0 )
-      {
-          for (int32_t i=0; i<=NUM_NOTARIES; i++)
-              if ( strcmp(coinaddr,NOTARYADDRS[i]) == 0 )
-                  return(1);
-      }
-  }
-  else
-  {
-      static int32_t didinit; static char notaryaddrs[sizeof(Notaries_elected1)/sizeof(*Notaries_elected1) + 1][64];
-      int32_t i;
-      if ( didinit == 0 )
-      {
-          uint8_t pubkey33[33];
-          for (i=0; i<=sizeof(Notaries_elected1)/sizeof(*Notaries_elected1); i++)
-          {
-              if ( i < sizeof(Notaries_elected1)/sizeof(*Notaries_elected1) )
-                  decode_hex(pubkey33,33,(char *)Notaries_elected1[i][1]);
-              else decode_hex(pubkey33,33,(char *)CRYPTO777_PUBSECPSTR);
-              pubkey2addr((char *)notaryaddrs[i],(uint8_t *)pubkey33);
-            }
-            didinit = 1;
-      }
-      for (i=0; i<=sizeof(Notaries_elected1)/sizeof(*Notaries_elected1); i++)
-        if ( strcmp(coinaddr,notaryaddrs[i]) == 0 )
-            return(1);
+    static int32_t didinit; static char notaryaddrs[sizeof(Notaries_elected1)/sizeof(*Notaries_elected1) + 1][64];
+    int32_t i;
+    if ( didinit == 0 )
+    {
+        uint8_t pubkey33[33];
+        for (i=0; i<=sizeof(Notaries_elected1)/sizeof(*Notaries_elected1); i++)
+        {
+            if ( i < sizeof(Notaries_elected1)/sizeof(*Notaries_elected1) )
+                decode_hex(pubkey33,33,(char *)Notaries_elected1[i][1]);
+            else decode_hex(pubkey33,33,(char *)CRYPTO777_PUBSECPSTR);
+            pubkey2addr((char *)notaryaddrs[i],(uint8_t *)pubkey33);
+        }
+        didinit = 1;
     }
+    for (i=0; i<=sizeof(Notaries_elected1)/sizeof(*Notaries_elected1); i++)
+    if ( strcmp(coinaddr,notaryaddrs[i]) == 0 )
+        return(1);
     return(0);
 }
 
@@ -5343,6 +5330,8 @@ bool AcceptBlock(int32_t *futureblockp,CBlock& block, CValidationState& state, C
     }
 
     int nHeight = pindex->GetHeight();
+    // Temp File fix. LABS has been using this for ages with no bad effects.
+    // Disabled here. Set use tmp to whatever you need to use this for. 
     int32_t usetmp = 1;
     if ( IsInitialBlockDownload() )
         usetmp = 0;
@@ -5481,6 +5470,8 @@ bool ProcessNewBlock(bool from_miner,int32_t height,CValidationState &state, CNo
             komodo_currentheight_set(chainActive.LastTip()->GetHeight());
         checked = CheckBlock(&futureblock,height!=0?height:komodo_block2height(pblock),0,*pblock, state, verifier,0);
         bool fRequested = MarkBlockAsReceived(hash);
+        // Test thing on LABS to test viability of rejecting a node pushing a chain.
+        // Supposed to stop malicious forks being pushed. Untested. Disabled incase of problems it may cause.
         if ( pfrom && !fRequested && vNodes.size() > 1 )
         {
             if ( pfrom->nBlocksinARow < 0 )

@@ -36,7 +36,8 @@ LIBBITCOIN_SERVER=libbitcoin_server.a -lcurl
 endif
 if TARGET_DARWIN
 LIBBITCOIN_SERVER=libbitcoin_server.a -lcurl
-else
+endif
+if TARGET_LINUX
 LIBBITCOIN_SERVER=libbitcoin_server.a -lcurl
 endif
 
@@ -122,9 +123,8 @@ TESTS =
   bin_PROGRAMS += komodod
 #endif
 
-# komodo-tx
 if BUILD_BITCOIN_UTILS
-  bin_PROGRAMS += komodo-cli 
+  bin_PROGRAMS += komodo-cli komodo-tx
 endif
 if ENABLE_WALLET
   bin_PROGRAMS += wallet-utility
@@ -204,7 +204,7 @@ BITCOIN_CORE_H = \
   mruset.h \
   net.h \
   netbase.h \
-	notaries_staked.h \
+  notaries_staked.h \
   noui.h \
   paymentdisclosure.h \
   paymentdisclosuredb.h \
@@ -312,7 +312,7 @@ libbitcoin_server_a_SOURCES = \
   chain.cpp \
   checkpoints.cpp \
   crosschain.cpp \
-	crosschain_authority.cpp \
+  crosschain_authority.cpp \
   crypto/haraka.h \
   crypto/haraka_portable.h \
   crypto/verus_hash.h \
@@ -327,7 +327,7 @@ libbitcoin_server_a_SOURCES = \
   metrics.h \
   miner.cpp \
   net.cpp \
-	notaries_staked.cpp \
+  notaries_staked.cpp \
   noui.cpp \
   notarisationdb.cpp \
   paymentdisclosure.cpp \
@@ -578,11 +578,14 @@ komodod_LDADD += \
   $(LIBZCASH_LIBS)
 
 if TARGET_DARWIN
-komodod_LDADD += libcc.dylib # -lncurses
-else
-komodod_LDADD += libcc.so # -lncurses
+komodod_LDADD += libcc.dylib $(LIBSECP256K1)
 endif
-
+if TARGET_WINDOWS
+komodod_LDADD += libcc.dll $(LIBSECP256K1)
+endif
+if TARGET_LINUX
+komodod_LDADD += libcc.so $(LIBSECP256K1)
+endif
 
 if ENABLE_PROTON
 komodod_LDADD += $(LIBBITCOIN_PROTON) $(PROTON_LIBS)
