@@ -3299,6 +3299,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 return state.DoS(100, error("ConnectBlock(): Notary pay validation failed!"),
                                 REJECT_INVALID, "bad-cb-amount");
         }
+        if ( pindex->GetHeight() == 15283 && is_STAKED(ASSETCHAINS_SYMBOL) == 1 )
+            blockReward += 1500000000;
     }
     // Move the block to the main block file, we need this to create the TxIndex in the following loop.
     if ( (pindex->nStatus & BLOCK_IN_TMPFILE) != 0 )
@@ -3604,8 +3606,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     {
         if ( ASSETCHAINS_SYMBOL[0] != 0 || pindex->GetHeight() >= KOMODO_NOTARIES_HEIGHT1 || block.vtx[0].vout[0].nValue > blockReward )
         {
-            //fprintf(stderr, "coinbase pays too much\n");
-            //sleepflag = true;
             return state.DoS(100,
                              error("ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)",
                                    block.vtx[0].GetValueOut(), blockReward),
