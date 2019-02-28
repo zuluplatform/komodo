@@ -61,15 +61,21 @@ NotarisationsInBlock ScanBlockNotarisations(const CBlock &block, int nHeight)
             }
             if (!CheckTxAuthority(tx, auth_STAKED))
                 continue;
-            printf("Authorised notarisation data for %s \n",data.symbol);
         }
-
+        printf("Authorised notarisation data for %s \n",data.symbol);
         if (parsed) 
         {
             vNotarisations.push_back(std::make_pair(tx.GetHash(), data));
             printf("Parsed a notarisation for: %s, txid:%s, ccid:%i, momdepth:%i\n",
                   data.symbol, tx.GetHash().GetHex().data(), data.ccId, data.MoMDepth);
             if (!data.MoMoM.IsNull()) printf("MoMoM:%s\n", data.MoMoM.GetHex().data());
+/*            
+            FILE * fptr;
+            fptr = fopen("/home/node/complete_notarizations", "a+");
+            // SRC SRC_TXID DEST DEST_TXID HEIGHT
+            fprintf(fptr, "%s %s %s\n", bp->srccoin->symbol,bp->srctxid,bp->destcoin->symbol,bp->desttxid,bp->height);
+            fclose(fptr);
+*/        
         } else
             LogPrintf("WARNING: Couldn't parse notarisation for tx: %s at height %i\n",
                     tx.GetHash().GetHex().data(), nHeight);
