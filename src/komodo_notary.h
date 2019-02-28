@@ -443,8 +443,10 @@ int32_t komodo_prevMoMheight()
     // KMD and ac_cc=0/1 has no MoM height! 
     if ( ASSETCHAINS_SYMBOL[0] == 0 || ASSETCHAINS_CC < 2 )
         return(0);
-    while ( 1 )
+    for (int i = 0; i < limit; i++) 
     {
+        if ( height < 0 )
+            return(0);
         Notarisation nota;
         int matchedHeight = ScanNotarisationsDB(height, ASSETCHAINS_SYMBOL, limit, nota);
         if ( matchedHeight != 0 )
@@ -453,7 +455,7 @@ int32_t komodo_prevMoMheight()
                 height -= 1;
             else 
                 return(nota.second.height);
-        } else return(0);
+        }
     }
     
     //fprintf(stderr, "MoM.%s MoMdepth.%i height.%i \n",nota.second.MoM.ToString().c_str(), nota.second.MoMDepth, nota.second.height);
