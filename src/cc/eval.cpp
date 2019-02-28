@@ -148,7 +148,6 @@ bool Eval::GetBlock(uint256 hash, CBlockIndex& blockIdx) const
 
 extern int32_t komodo_notaries(uint8_t pubkeys[64][33],int32_t height,uint32_t timestamp);
 
-
 int32_t Eval::GetNotaries(uint8_t pubkeys[64][33], int32_t height, uint32_t timestamp) const
 {
     return komodo_notaries(pubkeys, height, timestamp);
@@ -156,12 +155,12 @@ int32_t Eval::GetNotaries(uint8_t pubkeys[64][33], int32_t height, uint32_t time
 
 bool Eval::CheckNotaryInputs(const CTransaction &tx, uint32_t height, uint32_t timestamp) const
 {
-    if (tx.vin.size() < 11) return false;
+    //if (tx.vin.size() < 11) return false;
 
     CrosschainAuthority auth;
-    auth.requiredSigs = 11;
     auth.size = GetNotaries(auth.notaries, height, timestamp);
-
+    auth.requiredSigs = auth.size/5;
+    
     return CheckTxAuthority(tx, auth);
 }
 
