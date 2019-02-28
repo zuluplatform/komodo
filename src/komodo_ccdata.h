@@ -38,6 +38,7 @@ uint256 komodo_calcMoM(int32_t height,int32_t MoMdepth)
     return BuildMerkleTree(&fMutated, leaves, tree);
 }
 
+/*
 struct komodo_ccdata_entry *komodo_allMoMs(int32_t *nump,uint256 *MoMoMp,int32_t kmdstarti,int32_t kmdendi)
 {
     struct komodo_ccdata_entry *allMoMs=0; struct komodo_ccdata *ccdata,*tmpptr; int32_t i,num,max;
@@ -265,5 +266,5 @@ int32_t komodo_rwccdata(char *thischain,int32_t rwflag,struct komodo_ccdata *ccd
     }
     return(1);
 }
-
+*/
 #endif

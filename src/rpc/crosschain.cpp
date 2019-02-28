@@ -80,7 +80,7 @@ UniValue crosschainproof(const UniValue& params, bool fHelp)
 }
 
 
-UniValue height_MoM(const UniValue& params, bool fHelp)
+/*UniValue height_MoM(const UniValue& params, bool fHelp)
 {
     int32_t height,depth,notarized_height,MoMoMdepth,MoMoMoffset,kmdstarti,kmdendi; uint256 MoM,MoMoM,kmdtxid; uint32_t timestamp = 0; UniValue ret(UniValue::VOBJ); UniValue a(UniValue::VARR);
     if ( fHelp || params.size() != 1 )
@@ -118,7 +118,7 @@ UniValue height_MoM(const UniValue& params, bool fHelp)
     } else ret.push_back(Pair("error",(char *)"no MoM for height"));
 
     return ret;
-}
+} */
 
 UniValue MoMoMdata(const UniValue& params, bool fHelp)
 {

@@ -180,6 +180,8 @@ TxProof GetCrossChainProof(const uint256 txid, const char* targetSymbol, uint32_
     uint256 MoMoM = CalculateProofRoot(targetSymbol, targetCCid, kmdHeight, moms, targetChainNotarisationTxid);
     if (MoMoM.IsNull())
         throw std::runtime_error("No MoMs found");
+        
+    fprintf(stderr, "MoMoM in KMD.%s\n", MoMoM.ToString().c_str());
 
     // Find index of source MoM in MoMoM
     int nIndex;
@@ -275,11 +277,14 @@ bool CheckMoMoM(uint256 kmdNotarisationHash, uint256 momom)
      * backnotarisation and scan around the kmdheight to see if the MoMoM is a match.
      * This is a sledgehammer approach...
      */
+    fprintf(stderr, "MoMoM on AC.%s\n",momom.ToString().c_str());
 
     Notarisation bn;
     if (!GetBackNotarisation(kmdNotarisationHash, bn))
+    {   
+        fprintf(stderr, "cant get back notarization momom.%s\n", momom.ToString().c_str());
         return false;
-
+    }
     // Need to get block height of that backnotarisation
     EvalRef eval;
     CBlockIndex block;
@@ -297,6 +302,18 @@ bool CheckMoMoM(uint256 kmdNotarisationHash, uint256 momom)
     return (bool) ScanNotarisationsFromHeight(block.GetHeight()-100, checkMoMoM, nota);
 
 }
+/*
+│== Crosschain ==
+33                                 │MoMoMdata symbol kmdheight ccid
+34                                 │assetchainproof needs a txid
+35                                 │calc_MoM height MoMdepth
+36                                 │getNotarisationsForBlock blockHash
+37                                 │getimports "hash|height"
+39                                 │migrate_completeimporttransaction importTx
+40                                 │migrate_converttoexport rawTx dest_symbol
+41                                 │migrate_createimporttransaction burnTx payouts
+42                                 │scanNotarisationsDB blockHeight symbol [blocksLimit=1440]
+43                                 │selfimport only works on -ac_import chains
 
 
 /*

@@ -344,7 +344,7 @@ static const CRPCCommand vRPCCommands[] =
     /* Cross chain utilities */
     { "crosschain",         "MoMoMdata",              &MoMoMdata,              true  },
     { "crosschain",         "calc_MoM",               &calc_MoM,               true  },
-    { "crosschain",         "height_MoM",             &height_MoM,             true  },
+    //{ "crosschain",         "height_MoM",             &height_MoM,             true  },
     { "crosschain",         "assetchainproof",        &assetchainproof,        true  },
     { "crosschain",         "crosschainproof",        &crosschainproof,        true  },
     { "crosschain",         "getNotarisationsForBlock", &getNotarisationsForBlock, true },

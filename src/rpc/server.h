@@ -459,7 +459,7 @@ extern UniValue z_validatepaymentdisclosure(const UniValue &params, bool fHelp);
 
 extern UniValue MoMoMdata(const UniValue& params, bool fHelp);
 extern UniValue calc_MoM(const UniValue& params, bool fHelp);
-extern UniValue height_MoM(const UniValue& params, bool fHelp);
+//extern UniValue height_MoM(const UniValue& params, bool fHelp);
 extern UniValue assetchainproof(const UniValue& params, bool fHelp);
 extern UniValue crosschainproof(const UniValue& params, bool fHelp);
 extern UniValue getNotarisationsForBlock(const UniValue& params, bool fHelp);
