@@ -453,7 +453,7 @@ int32_t komodo_prevMoMheight()
                 height -= 1;
             else 
                 return(nota.second.height);
-        }
+        } else return(0);
     }
     
     //fprintf(stderr, "MoM.%s MoMdepth.%i height.%i \n",nota.second.MoM.ToString().c_str(), nota.second.MoMDepth, nota.second.height);
