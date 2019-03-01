@@ -116,26 +116,48 @@ UniValue crosschainproof(const UniValue& params, bool fHelp)
             ret.push_back(Pair("kmdendi",kmdendi));
         }
     } else ret.push_back(Pair("error",(char *)"no MoM for height"));
+    
+    MoMoM fix:
+        `uint256 MoMoM = CalculateProofRoot(symbol, ccid, kmdheight, moms, destNotarisationTxid);`
+         must check that the first notarization it is using is itself notarized on KMD. 
+         lastnotarized height function will be safe enough (better still is to use DB and count back 2 nota of KMD, as this makes sure the nota is in the chain on resync)
+            notarized height is faster, DB slower, its safe to assume all notaries are online, and as such cannot reorg past the last notarized height. 
 
+    need to add a bool falg to notarization class that sets and locks to true after 3 nota happened for an asset chain on the KMD daemon.  
+    iguana needs an error from MoMoMdata RPC on KMD when MoMoM cannot be detemined from above. this enable nota round to bail out until needed data is there.
+        checking for last 2 nota made are confirmed and notarized and so cannot be reorged. we then use these 2 determinate data points to create MoMoM hash.
+        the first 3 notarizations must have a null MoMoM returned to iguana, and not the error, to make sure that enough MoM  hash exist to get a determinate MoMoM hash
+    
     return ret;
 } */
+int32_t komodo_notarized_height(int32_t *prevMoMheightp,uint256 *hashp,uint256 *txidp);
 
 UniValue MoMoMdata(const UniValue& params, bool fHelp)
 {
     if ( fHelp || params.size() != 3 )
         throw runtime_error("MoMoMdata symbol kmdheight ccid\n");
     UniValue ret(UniValue::VOBJ);
+    uint256 notarized_hash,notarized_desttxid; int32_t prevMoMheight,notarized_height; bool MoMoMpossible;
+    notarized_height = komodo_notarized_height(&prevMoMheight,&notarized_hash,&notarized_desttxid);
+    
     char* symbol = (char *)params[0].get_str().c_str();
     int kmdheight = atoi(params[1].get_str().c_str());
     uint32_t ccid = atoi(params[2].get_str().c_str());
     ret.push_back(Pair("coin",symbol));
     ret.push_back(Pair("kmdheight",kmdheight));
     ret.push_back(Pair("ccid", (int) ccid));
-
+    
     uint256 destNotarisationTxid;
     std::vector<uint256> moms;
-    uint256 MoMoM = CalculateProofRoot(symbol, ccid, kmdheight, moms, destNotarisationTxid);
-
+    //fprintf(stderr, "symbol.%s CCid.%i kmdHeight.%i\n", symbol, ccid, kmdheight);
+    // MoMoMpossible is a flag set once 3 nota have happened already, before this MoMoM cannt be calculated. 
+    uint256 MoMoM = CalculateProofRoot(symbol, ccid, kmdheight, moms, destNotarisationTxid, MoMoMpossible);
+    if ( kmdheight > notarized_height && MoMoMpossible ) 
+    {
+        // fail the notarization isnt notarized! 
+        // send something to iguana to tell it to bail on the current round. 
+        ret.push_back(Pair("error","MoMoM indeterminate."));
+    }
     UniValue valMoms(UniValue::VARR);
     for (int i=0; i<moms.size(); i++) valMoms.push_back(moms[i].GetHex());
     ret.push_back(Pair("MoMs", valMoms));
@@ -453,6 +475,7 @@ UniValue scanNotarisationsDB(const UniValue& params, bool fHelp)
     UniValue out(UniValue::VOBJ);
     out.pushKV("height", matchedHeight);
     out.pushKV("hash", nota.first.GetHex());
+    //out.pushKV("MoMoM", nota.second.MoMoM.GetHex());
     out.pushKV("opreturn", HexStr(E_MARSHAL(ss << nota.second)));
     return out;
 }
