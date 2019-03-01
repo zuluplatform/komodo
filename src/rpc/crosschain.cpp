@@ -152,7 +152,7 @@ UniValue MoMoMdata(const UniValue& params, bool fHelp)
     //fprintf(stderr, "symbol.%s CCid.%i kmdHeight.%i\n", symbol, ccid, kmdheight);
     // MoMoMpossible is a flag set once 3 nota have happened already, before this MoMoM cannt be calculated. 
     uint256 MoMoM = CalculateProofRoot(symbol, ccid, kmdheight, moms, destNotarisationTxid, MoMoMpossible);
-    if ( kmdheight > notarized_height && MoMoMpossible ) 
+    if ( kmdheight > notarized_height ) //&& MoMoMpossible ) 
     {
         // fail the notarization isnt notarized! 
         // send something to iguana to tell it to bail on the current round. 
