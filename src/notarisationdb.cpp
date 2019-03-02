@@ -147,8 +147,8 @@ int ScanNotarisationsDB(int height, std::string symbol, int scanLimitBlocks, Not
         {
             if (strcmp(nota.second.symbol, symbol.data()) == 0) 
             {
-                //out = nota;
-                //return height-i;
+                out = nota;
+                return height-i;
                 printf("MoMoM.%s\n", nota.second.MoMoM.GetHex().c_str());
             }
         }
