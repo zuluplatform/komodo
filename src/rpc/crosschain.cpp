@@ -137,8 +137,9 @@ UniValue MoMoMdata(const UniValue& params, bool fHelp)
     if ( fHelp || params.size() != 3 )
         throw runtime_error("MoMoMdata symbol kmdheight ccid\n");
     UniValue ret(UniValue::VOBJ);
-    uint256 notarized_hash,notarized_desttxid; int32_t prevMoMheight,notarized_height; bool MoMoMpossible;
-    notarized_height = komodo_notarized_height(&prevMoMheight,&notarized_hash,&notarized_desttxid);
+    //uint256 notarized_hash,notarized_desttxid; int32_t prevMoMheight,notarized_height; 
+    bool MoMoMpossible;
+    //notarized_height = komodo_notarized_height(&prevMoMheight,&notarized_hash,&notarized_desttxid);
     
     char* symbol = (char *)params[0].get_str().c_str();
     int kmdheight = atoi(params[1].get_str().c_str());
@@ -152,12 +153,12 @@ UniValue MoMoMdata(const UniValue& params, bool fHelp)
     //fprintf(stderr, "symbol.%s CCid.%i kmdHeight.%i\n", symbol, ccid, kmdheight);
     // MoMoMpossible is a flag set once 3 nota have happened already, before this MoMoM cannt be calculated. 
     uint256 MoMoM = CalculateProofRoot(symbol, ccid, kmdheight, moms, destNotarisationTxid, MoMoMpossible);
-    if ( kmdheight > notarized_height ) //&& MoMoMpossible ) 
+    /*if ( kmdheight > notarized_height ) //&& MoMoMpossible ) 
     {
         // fail the notarization isnt notarized! 
         // send something to iguana to tell it to bail on the current round. 
         ret.push_back(Pair("error","MoMoM indeterminate."));
-    }
+    } */
     UniValue valMoms(UniValue::VARR);
     for (int i=0; i<moms.size(); i++) valMoms.push_back(moms[i].GetHex());
     ret.push_back(Pair("MoMs", valMoms));
