@@ -182,7 +182,7 @@ UniValue geterablockheights(const UniValue& params, bool fHelp)
         {
             char str[16];
             sprintf(str, "%d", era);
-            ret.push_back(Pair(str,i));
+            ret.push_back(Pair(str,(int64_t)i));
             lastera = era;
         }
     }
@@ -1479,8 +1479,11 @@ UniValue decodeccopret(const UniValue& params, bool fHelp)
     }
     std::vector<unsigned char> hex(ParseHex(params[0].get_str()));
     CScript scripthex(hex.begin(),hex.end());
-    if (DecodeTokenOpRet(scripthex,tokenevalcode,tokenid,pubkeys,vOpretExtra)!=0 && tokenevalcode==EVAL_TOKENS && vOpretExtra.size()>0)
+    std::vector<std::pair<uint8_t, vscript_t>>  oprets;
+    if (DecodeTokenOpRet(scripthex,tokenevalcode,tokenid,pubkeys, oprets)!=0 && tokenevalcode==EVAL_TOKENS && oprets.size()>0)
     {
+        // seems we need a loop here
+        vOpretExtra = oprets[0].second;  
         UniValue obj(UniValue::VOBJ);
         GetOpReturnData(scripthex,vopret);
         script = (uint8_t *)vopret.data();

@@ -421,7 +421,7 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
     // Check amount
     if (nValue <= 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
-
+//fprintf(stderr,"nValue %.8f vs curBalance %.8f\n",(double)nValue/COIN,(double)curBalance/COIN);
     if (nValue > curBalance)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
 
@@ -1029,7 +1029,6 @@ CAmount GetAccountBalance(const string& strAccount, int nMinDepth, const isminef
     CWalletDB walletdb(pwalletMain->strWalletFile);
     return GetAccountBalance(walletdb, strAccount, nMinDepth, filter);
 }
-
 
 UniValue cleanwallettransactions(const UniValue& params, bool fHelp)
 {
@@ -6310,7 +6309,7 @@ UniValue gatewaysdumpprivkey(const UniValue& params, bool fHelp)
     uint256 bindtxid;
 
     if ( fHelp || params.size() != 2)
-        throw runtime_error("gatewaysexternaladdress bindtxid address\n");
+        throw runtime_error("gatewaysdumpprivkey bindtxid address\n");
     if ( ensure_CCrequirements(EVAL_GATEWAYS) < 0 )
         throw runtime_error("to use CC contracts, you need to launch daemon with valid -pubkey= for an address in your wallet\n");
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -6349,7 +6348,7 @@ UniValue gatewaysbind(const UniValue& params, bool fHelp)
     UniValue result(UniValue::VOBJ); uint256 tokenid,oracletxid; int32_t i; int64_t totalsupply; std::vector<CPubKey> pubkeys;
     uint8_t M,N,p1,p2,p3,p4=0; std::string hex,coin; std::vector<unsigned char> pubkey;
 
-    if ( fHelp || params.size() < 9 )
+    if ( fHelp || params.size() < 10 )
         throw runtime_error("gatewaysbind tokenid oracletxid coin tokensupply M N pubkey(s) pubtype p2shtype wiftype [taddr]\n");
     if ( ensure_CCrequirements(EVAL_GATEWAYS) < 0 )
         throw runtime_error("to use CC contracts, you need to launch daemon with valid -pubkey= for an address in your wallet\n");
@@ -6363,10 +6362,10 @@ UniValue gatewaysbind(const UniValue& params, bool fHelp)
     N = atoi((char *)params[5].get_str().c_str());
     if ( M > N || N == 0 || N > 15 || totalsupply < COIN/100 || tokenid == zeroid )
         throw runtime_error("illegal M or N > 15 or tokensupply or invalid tokenid\n");
+    if ( params.size() < 6+N+3 )
+        throw runtime_error("not enough parameters for N pubkeys\n");
     for (i=0; i<N; i++)
-    {
-        if ( params.size() < 6+i+1 )
-            throw runtime_error("not enough parameters for N pubkeys\n");
+    {       
         pubkey = ParseHex(params[6+i].get_str().c_str());
         if (pubkey.size()!= 33)
             throw runtime_error("invalid destination pubkey");
@@ -6375,7 +6374,7 @@ UniValue gatewaysbind(const UniValue& params, bool fHelp)
     p1 = atoi((char *)params[6+N].get_str().c_str());
     p2 = atoi((char *)params[6+N+1].get_str().c_str());
     p3 = atoi((char *)params[6+N+2].get_str().c_str());
-    if (params.size() == 9+N) p4 = atoi((char *)params[6+N+3].get_str().c_str());
+    if (params.size() == 9+N+1) p4 = atoi((char *)params[9+N].get_str().c_str());
     hex = GatewaysBind(0,coin,tokenid,totalsupply,oracletxid,M,N,pubkeys,p1,p2,p3,p4);
     RETURN_IF_ERROR(CCerror);
     if ( hex.size() > 0 )
@@ -8070,7 +8069,7 @@ UniValue test_burntx(const UniValue& params, bool fHelp)
     CPubKey unspPk = GetUnspendable(cp, tokenpriv);
     GetCCaddress(cp, unspendableTokenAddr, unspPk);
     CCaddr2set(cp, EVAL_TOKENS, unspPk, tokenpriv, unspendableTokenAddr);
-    return(FinalizeCCTx(0, cp, mtx, myPubkey, 10000, EncodeTokenOpRet(tokenid, voutPubkeys, CScript())));
+    return(FinalizeCCTx(0, cp, mtx, myPubkey, 10000, EncodeTokenOpRet(tokenid, voutPubkeys, std::make_pair(0, vscript_t()))));
 }
 
 UniValue test_proof(const UniValue& params, bool fHelp)
