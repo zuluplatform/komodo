@@ -65,7 +65,9 @@ NotarisationsInBlock ScanBlockNotarisations(const CBlock &block, int nHeight)
             vNotarisations.push_back(std::make_pair(tx.GetHash(), data));
             printf("Parsed a notarisation for: %s, txid:%s, ccid:%i, momdepth:%i\n",
                   data.symbol, tx.GetHash().GetHex().data(), data.ccId, data.MoMDepth);
-            if (!data.MoMoM.IsNull()) printf("MoMoM:%s\n", data.MoMoM.GetHex().data());
+            if (!data.MoMoM.IsNull()) 
+                printf("MoMoM:%s\n", data.MoMoM.GetHex().data());
+            printf("MoM:%s\n", data.MoM.GetHex().data());
         } else
             LogPrintf("WARNING: Couldn't parse notarisation for tx: %s at height %i\n",
                     tx.GetHash().GetHex().data(), nHeight);

@@ -304,8 +304,8 @@ UniValue getinfo(const UniValue& params, bool fHelp)
         obj.push_back(Pair("CCid",        (int)ASSETCHAINS_CC));
         if ( ASSETCHAINS_CC > 1 )
         {
+            // Maybe this needs to be in a function or its own RPC so that it can request the limit. 
             // This is to make sure the approprtiate MoM hash exist on chain to calculate a MoMoM hash.
-            // 
             // keep stepping back MoM heights until we get to the same level as CalculateProofRoot uses. 
             int limit = 3;
             int ppMoMheight = komodo_prevMoMheight(prevMoMheight-1);

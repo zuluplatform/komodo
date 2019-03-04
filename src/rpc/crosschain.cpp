@@ -156,7 +156,7 @@ UniValue MoMoMdata(const UniValue& params, bool fHelp)
         // send something to iguana to tell it to bail on the current round. 
         // iguana will check if there are the required number MoM on the chain via getinfo call.
         // if the amount of required notarizations have not yet happened, then iguana will ignore this error, 
-        // sending a null MoMoM, this enables the required amount of MoM to exist first. 
+        // notarizing a null MoMoM, this enables the required amount of MoM to exist first. 
         ret.push_back(Pair("error","MoMoM is null."));
     }
     UniValue valMoms(UniValue::VARR);
@@ -221,12 +221,19 @@ UniValue migrate_converttoexport(const UniValue& params, bool fHelp)
 
     if (strcmp(ASSETCHAINS_SYMBOL,targetSymbol.c_str()) == 0)
         throw runtime_error("cant send a coin to the same chain");
+    
+    /// Tested 44 vins p2pkh inputs as working. Set this at 25, but its a tx size limit. 
+    // likely with a single RPC you can limit it by the size of tx.
+    if (tx.vout.size() > 25)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Cannot have more than 50 vins, transaction too large.");
 
     CAmount burnAmount = 0;
     
     for (int i=0; i<tx.vout.size(); i++) burnAmount += tx.vout[i].nValue;
     if (burnAmount <= 0)
         throw JSONRPCError(RPC_TYPE_ERROR, "Cannot export a negative or zero value.");
+    // This is due to MAX MONEY in target. We set it at min 1 million coins, so you cant export more than 1 million,
+    // without knowing the MAX money on the target this was the easiest solution. 
     if (burnAmount > 1000000LL*COIN)
         throw JSONRPCError(RPC_TYPE_ERROR, "Cannot export more than 1 million coins per export.");
 
