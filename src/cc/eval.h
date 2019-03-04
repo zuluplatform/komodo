@@ -162,7 +162,6 @@ class NotarisationData
 {
 public:
     int IsBackNotarisation = 0;
-    //bool MoMoMpossible     = true;
     uint256 blockHash      = uint256();
     uint32_t height        = 0;
     uint256 txHash         = uint256();

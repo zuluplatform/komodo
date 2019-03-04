@@ -436,14 +436,14 @@ struct notarized_checkpoint *komodo_npptr_at(int idx)
     return(0);
 } */
 
-int32_t komodo_prevMoMheight()
+int32_t komodo_prevMoMheight(int height)
 {
     int limit = 1440;
-    int height = chainActive.Height();
     // KMD and ac_cc=0/1 has no MoM height! 
     if ( ASSETCHAINS_SYMBOL[0] == 0 || ASSETCHAINS_CC < 2 )
         return(0);
-    for (int i = 0; i < limit; i++) 
+    // scan back 100 maximum notarizations to get prev MoM height. 
+    for (int i = 0; i < 100; i++) 
     {
         if ( height < 0 )
             return(0);
@@ -452,7 +452,7 @@ int32_t komodo_prevMoMheight()
         if ( matchedHeight != 0 )
         {
             if ( nota.second.MoM.IsNull() )
-                height -= 1;
+                height = matchedHeight-1;
             else 
                 return(nota.second.height);
         }
@@ -484,7 +484,7 @@ int32_t komodo_notarized_height(int32_t *prevMoMheightp,uint256 *hashp,uint256 *
     {
         *hashp = sp->NOTARIZED_HASH;
         *txidp = sp->NOTARIZED_DESTTXID;
-        *prevMoMheightp = komodo_prevMoMheight();
+        *prevMoMheightp = komodo_prevMoMheight(chainActive.Height());
         return(sp->NOTARIZED_HEIGHT);
     }
     else

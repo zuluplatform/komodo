@@ -74,6 +74,7 @@ extern char ASSETCHAINS_SYMBOL[KOMODO_ASSETCHAIN_MAXLEN];
 uint32_t komodo_segid32(char *coinaddr);
 int64_t komodo_coinsupply(int64_t *zfundsp,int64_t *sproutfundsp,int32_t height);
 int32_t notarizedtxid_height(char *dest,char *txidstr,int32_t *kmdnotarized_heightp);
+int32_t komodo_prevMoMheight(int height);
 int8_t StakedNotaryID(std::string &notaryname, char *Raddress);
 
 #define KOMODO_VERSION "0.3.3b"
@@ -299,7 +300,21 @@ UniValue getinfo(const UniValue& params, bool fHelp)
         obj.push_back(Pair("pubkey", NOTARY_PUBKEY));
     }
     if ( ASSETCHAINS_CC != 0 )
+    {
         obj.push_back(Pair("CCid",        (int)ASSETCHAINS_CC));
+        if ( ASSETCHAINS_CC > 1 )
+        {
+            // This is to make sure the approprtiate MoM hash exist on chain to calculate a MoMoM hash.
+            // 
+            // keep stepping back MoM heights until we get to the same level as CalculateProofRoot uses. 
+            int limit = 3;
+            int ppMoMheight = komodo_prevMoMheight(prevMoMheight-1);
+            for (int8_t i = 0; i < limit; i++) {
+                ppMoMheight = komodo_prevMoMheight(ppMoMheight-1);
+            }
+            obj.push_back(Pair("ppMoMheight",(int)ppMoMheight));
+        }
+    }
     obj.push_back(Pair("name",        ASSETCHAINS_SYMBOL[0] == 0 ? "KMD" : ASSETCHAINS_SYMBOL));
     obj.push_back(Pair("sapling", ASSETCHAINS_SAPLING));
 

@@ -49,16 +49,13 @@ NotarisationsInBlock ScanBlockNotarisations(const CBlock &block, int nHeight)
             }
             // We need to create auth_STAKED dynamically here based on timestamp
             int32_t staked_era = STAKED_era(timestamp);
-            if (staked_era == 0) 
+            if ( staked_era == 0 ) 
             {
                 // this is an ERA GAP, so we will ignore this notarization
                 continue;
             } 
-            else 
-            {
-                // pass era slection off to notaries_staked.cpp file
-                auth_STAKED = Choose_auth_STAKED(staked_era);
-            }
+            // pass era slection off to notaries_staked.cpp file
+            auth_STAKED = Choose_auth_STAKED(staked_era);
             if (!CheckTxAuthority(tx, auth_STAKED))
                 continue;
         }
@@ -69,13 +66,6 @@ NotarisationsInBlock ScanBlockNotarisations(const CBlock &block, int nHeight)
             printf("Parsed a notarisation for: %s, txid:%s, ccid:%i, momdepth:%i\n",
                   data.symbol, tx.GetHash().GetHex().data(), data.ccId, data.MoMDepth);
             if (!data.MoMoM.IsNull()) printf("MoMoM:%s\n", data.MoMoM.GetHex().data());
-/*            
-            FILE * fptr;
-            fptr = fopen("/home/node/complete_notarizations", "a+");
-            // SRC SRC_TXID DEST DEST_TXID HEIGHT
-            fprintf(fptr, "%s %s %s\n", bp->srccoin->symbol,bp->srctxid,bp->destcoin->symbol,bp->desttxid,bp->height);
-            fclose(fptr);
-*/        
         } else
             LogPrintf("WARNING: Couldn't parse notarisation for tx: %s at height %i\n",
                     tx.GetHash().GetHex().data(), nHeight);
@@ -149,7 +139,8 @@ int ScanNotarisationsDB(int height, std::string symbol, int scanLimitBlocks, Not
             {
                 out = nota;
                 return height-i;
-                //printf("MoMoM.%s\n", nota.second.MoMoM.GetHex().c_str());
+                //if ( nota.second.MoMoM.GetHex() == "0000000000000000000000000000000000000000000000000000000000000000" )
+                //    printf("KMD_TXID.%s \n", nota.second.txHash.GetHex().c_str());
             }
         }
     }
