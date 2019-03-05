@@ -62,6 +62,25 @@ void init_string(struct return_string *s)
     s->ptr[0] = '\0';
 }
 
+int tx_height( const uint256 &hash ){
+    int nHeight = 0;
+    CTransaction tx;
+    uint256 hashBlock;
+    if (!GetTransaction(hash, tx, hashBlock, true)) {
+        fprintf(stderr,"tx hash %s does not exist!\n", hash.ToString().c_str() );
+    }
+
+    BlockMap::const_iterator it = mapBlockIndex.find(hashBlock);
+    if (it != mapBlockIndex.end()) {
+        nHeight = it->second->GetHeight();
+        //fprintf(stderr,"blockHash %s height %d\n",hashBlock.ToString().c_str(), nHeight);
+    } else {
+        fprintf(stderr,"block hash %s does not exist!\n", hashBlock.ToString().c_str() );
+    }
+    return nHeight;
+}
+
+
 /************************************************************************
  *
  * Use the "writer" to accumulate text until done
@@ -2012,10 +2031,13 @@ int64_t komodo_checkcommission(CBlock *pblock,int32_t height)
         {
             script = (uint8_t *)&pblock->vtx[0].vout[1].scriptPubKey[0];
             scriptlen = (int32_t)pblock->vtx[0].vout[1].scriptPubKey.size();
-            //int32_t i;
-            //for (i=0; i<scriptlen; i++)
-            //    fprintf(stderr,"%02x",script[i]);
-            //fprintf(stderr," vout[1] %.8f vs %.8f\n",(double)checktoshis/COIN,(double)pblock->vtx[0].vout[1].nValue/COIN);
+            if ( 0 )
+            {
+                int32_t i;
+                for (i=0; i<scriptlen; i++)
+                    fprintf(stderr,"%02x",script[i]);
+                fprintf(stderr," vout[1] %.8f vs %.8f\n",(double)checktoshis/COIN,(double)pblock->vtx[0].vout[1].nValue/COIN);
+            }
             if ( ASSETCHAINS_SCRIPTPUB.size() > 1 )
             {
                 if ( ASSETCHAINS_SCRIPTPUB.size()/2 == scriptlen && scriptlen < sizeof(scripthex) )
@@ -2031,7 +2053,13 @@ int64_t komodo_checkcommission(CBlock *pblock,int32_t height)
                 matched = 25;
             if ( matched == 0 )
             {
-                fprintf(stderr," payment to wrong pubkey scriptlen.%d, scriptpub[%d] checktoshis.%llu\n",scriptlen,(int32_t)ASSETCHAINS_SCRIPTPUB.size()/2,(long long)checktoshis);
+                if ( 0 && ASSETCHAINS_SCRIPTPUB.size() > 1 )
+                {
+                    int32_t i;
+                    for (i=0; i<ASSETCHAINS_SCRIPTPUB.size(); i++)
+                        fprintf(stderr,"%02x",ASSETCHAINS_SCRIPTPUB[i]);
+                }
+                fprintf(stderr," -ac[%d] payment to wrong pubkey scriptlen.%d, scriptpub[%d] checktoshis.%llu\n",(int32_t)ASSETCHAINS_SCRIPTPUB.size(),scriptlen,(int32_t)ASSETCHAINS_SCRIPTPUB.size()/2,(long long)checktoshis);
                 return(-1);
 
             }
@@ -2117,7 +2145,7 @@ int32_t komodo_checkPOW(int32_t slowflag,CBlock *pblock,int32_t height)
             else
             {
                 bnTarget = komodo_PoWtarget(&PoSperc,bnTarget,height,ASSETCHAINS_STAKED);
-                if ( bhash > bnTarget )
+                if ( bhash > bnTarget && height > 100 )
                 {
                     for (i=31; i>=16; i--)
                         fprintf(stderr,"%02x",((uint8_t *)&bhash)[i]);
@@ -2126,7 +2154,8 @@ int32_t komodo_checkPOW(int32_t slowflag,CBlock *pblock,int32_t height)
                         fprintf(stderr,"%02x",((uint8_t *)&bnTarget)[i]);
                     fprintf(stderr," ht.%d PoW diff violation PoSperc.%d vs goalperc.%d\n",height,PoSperc,(int32_t)ASSETCHAINS_STAKED);
                     return(-1);
-                } else
+                }
+                else
                 {
                     failed = 0; 
                     CBlockIndex *pindex; 
