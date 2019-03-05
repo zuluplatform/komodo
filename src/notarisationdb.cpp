@@ -32,7 +32,7 @@ NotarisationsInBlock ScanBlockNotarisations(const CBlock &block, int nHeight)
         if (strlen(data.symbol) == 0)
           continue;
 
-        printf("Checked notarisation data for %s \n",data.symbol);
+        //printf("Checked notarisation data for %s \n",data.symbol);
         int authority = GetSymbolAuthority(data.symbol);
 
         if (authority == CROSSCHAIN_KOMODO) 
@@ -59,15 +59,13 @@ NotarisationsInBlock ScanBlockNotarisations(const CBlock &block, int nHeight)
             if (!CheckTxAuthority(tx, auth_STAKED))
                 continue;
         }
-        printf("Authorised notarisation data for %s \n",data.symbol);
+        //printf("Authorised notarisation data for %s \n",data.symbol);
         if (parsed) 
         {
             vNotarisations.push_back(std::make_pair(tx.GetHash(), data));
-            printf("Parsed a notarisation for: %s, txid:%s, ccid:%i, momdepth:%i\n",
-                  data.symbol, tx.GetHash().GetHex().data(), data.ccId, data.MoMDepth);
-            if (!data.MoMoM.IsNull()) 
-                printf("MoMoM:%s\n", data.MoMoM.GetHex().data());
-            printf("MoM:%s\n", data.MoM.GetHex().data());
+            printf("Parsed a notarisation for: %s, txid:%s, ccid:%i, momdepth:%i MoM: %s\n",
+                  data.symbol, tx.GetHash().GetHex().data(), data.ccId, data.MoMDepth, data.MoM.GetHex().data());
+            if (!data.MoMoM.IsNull()) printf("MoMoM: %s\n", data.MoMoM.GetHex().data());
         } else
             LogPrintf("WARNING: Couldn't parse notarisation for tx: %s at height %i\n",
                     tx.GetHash().GetHex().data(), nHeight);

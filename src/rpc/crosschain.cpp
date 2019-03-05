@@ -136,9 +136,7 @@ UniValue MoMoMdata(const UniValue& params, bool fHelp)
     if ( fHelp || params.size() != 3 )
         throw runtime_error("MoMoMdata symbol kmdheight ccid\n");
     UniValue ret(UniValue::VOBJ);
-    //uint256 notarized_hash,notarized_desttxid; int32_t prevMoMheight,notarized_height; 
-    //notarized_height = komodo_notarized_height(&prevMoMheight,&notarized_hash,&notarized_desttxid);
-    
+        
     char* symbol = (char *)params[0].get_str().c_str();
     int kmdheight = atoi(params[1].get_str().c_str());
     uint32_t ccid = atoi(params[2].get_str().c_str());
@@ -148,12 +146,10 @@ UniValue MoMoMdata(const UniValue& params, bool fHelp)
     
     uint256 destNotarisationTxid;
     std::vector<uint256> moms;
-    //fprintf(stderr, "symbol.%s CCid.%i kmdHeight.%i\n", symbol, ccid, kmdheight);
     uint256 MoMoM = CalculateProofRoot(symbol, ccid, kmdheight, moms, destNotarisationTxid);
-    if ( MoMoM.IsNull() ) // || kmdheight > notarized_height )
+    if ( MoMoM.IsNull() ) 
     {
-        // MoMoM is empty, skip this round and try again next block.
-        // send something to iguana to tell it to bail on the current round. 
+        // MoMoM is empty, skip this round and try again next round.
         // iguana will check if there are the required number MoM on the chain via getinfo call.
         // if the amount of required notarizations have not yet happened, then iguana will ignore this error, 
         // notarizing a null MoMoM, this enables the required amount of MoM to exist first. 
@@ -483,7 +479,6 @@ UniValue scanNotarisationsDB(const UniValue& params, bool fHelp)
     UniValue out(UniValue::VOBJ);
     out.pushKV("height", matchedHeight);
     out.pushKV("hash", nota.first.GetHex());
-    //out.pushKV("MoMoM", nota.second.MoMoM.GetHex());
     out.pushKV("opreturn", HexStr(E_MARSHAL(ss << nota.second)));
     return out;
 }

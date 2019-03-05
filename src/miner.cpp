@@ -364,7 +364,7 @@ CBlockTemplate* CreateNewBlock(CPubKey _pk,const CScript& _scriptPubKeyIn, int32
                     }
                     dPriority += (double)nValueIn * nConf;
                 }
-                if ( numSN != 0 && TMP_NotarisationNotaries.size() >= numSN / 5 )
+                if ( numSN != 0 && notarypubkeys[0][0] != 0 && TMP_NotarisationNotaries.size() >= numSN / 5 )
                 {
                     // check a notary didnt sign twice (this would be an invalid notarisation later on and cause problems)
                     std::set<int> checkdupes( TMP_NotarisationNotaries.begin(), TMP_NotarisationNotaries.end() );
@@ -411,7 +411,7 @@ CBlockTemplate* CreateNewBlock(CPubKey _pk,const CScript& _scriptPubKeyIn, int32
                             NotarisationNotaries = TMP_NotarisationNotaries;
                             dPriority = 1e16;
                             fNotarisationBlock = true;
-                            fprintf(stderr, "Notarisation %s set to maximum priority\n",hash.ToString().c_str());
+                            //fprintf(stderr, "Notarisation %s set to maximum priority\n",hash.ToString().c_str());
                         }
                     }
                 }
@@ -713,9 +713,8 @@ CBlockTemplate* CreateNewBlock(CPubKey _pk,const CScript& _scriptPubKeyIn, int32
                         LEAVE_CRITICAL_SECTION(mempool.cs);
                     }
                     return(0);
-                }
-                fprintf(stderr, "Created notary payment coinbase totalsat.%lu\n",totalsats);    
-            } else fprintf(stderr, "vout 2 of notarisation is not OP_RETURN scriptlen.%i\n", scriptlen);
+                }  
+            }
         }
 
         pblock->vtx[0] = txNew;
