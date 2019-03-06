@@ -99,7 +99,8 @@ uint256 CalculateProofRoot(const char* symbol, uint32_t targetCCid, int kmdHeigh
             }
         }
 
-        if (seenOwnNotarisations >= 1) // This was the problem, it was ignoring the extra range with == 1! 
+        // temp disable this to dev iguana fix.
+        if (seenOwnNotarisations == 1) // This was the problem, it was ignoring the extra range with == 1!  >= 1!
         {
             BOOST_FOREACH(Notarisation& nota, notarisations) 
             {
