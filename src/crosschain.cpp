@@ -39,7 +39,7 @@
 // because it might be disconnecting blocks at the same time.
 
 
-int NOTARISATION_SCAN_LIMIT_BLOCKS = 1440;
+int NOTARISATION_SCAN_LIMIT_BLOCKS = 2880; // temp change this so that current chains can continue! 1440 default.
 CBlockIndex *komodo_getblockindex(uint256 hash);
 
 
@@ -67,8 +67,11 @@ uint256 CalculateProofRoot(const char* symbol, uint32_t targetCCid, int kmdHeigh
     int seenOwnNotarisations = 0;
 
     int authority = GetSymbolAuthority(symbol);
-
-    for (int i=0; i<NOTARISATION_SCAN_LIMIT_BLOCKS; i++) {
+    int i = 0;
+    std::set<uint256> tmp_moms;
+    
+    for (i=0; i<NOTARISATION_SCAN_LIMIT_BLOCKS; i++) 
+    {
         if (i > kmdHeight) break;
         NotarisationsInBlock notarisations;
         uint256 blockHash = *chainActive[kmdHeight-i]->phashBlock;
@@ -79,16 +82,15 @@ uint256 CalculateProofRoot(const char* symbol, uint32_t targetCCid, int kmdHeigh
         // the objective here is to make sure we are covering all MoM hashes and not skipping any!
         // We cannot skip the first, as it throws off signing in the GetCrossChainProof function below.
         // But we can use a larger range. Maybe with a large enough range we can use KMD notarized height? 
-        BOOST_FOREACH(Notarisation& nota, notarisations) {
+        BOOST_FOREACH(Notarisation& nota, notarisations) 
+        {
             if ( strcmp(nota.second.symbol, symbol) == 0 ) 
             {
                 seenOwnNotarisations++;
                 if (seenOwnNotarisations == 1)
                     destNotarisationTxid = nota.first;
                 else if (seenOwnNotarisations == 3)
-                {
                     goto end;
-                }
                 //break;
                 // This will stop the range being 0, but it can also skip a notarization if 2 are in one block.
                 // by skipping it we should just add all the relavent notarizations in the same block.
@@ -97,23 +99,31 @@ uint256 CalculateProofRoot(const char* symbol, uint32_t targetCCid, int kmdHeigh
             }
         }
 
-        if (seenOwnNotarisations == 1) {
-            BOOST_FOREACH(Notarisation& nota, notarisations) {
+        if (seenOwnNotarisations >= 1) // This was the problem, it was ignoring the extra range with == 1! 
+        {
+            BOOST_FOREACH(Notarisation& nota, notarisations) 
+            {
                 if (GetSymbolAuthority(nota.second.symbol) == authority)
-                    if (nota.second.ccId == targetCCid) {
-                        moms.push_back(nota.second.MoM);
-                        //fprintf(stderr, "added mom: %s\n",nota.second.MoM.GetHex().data());
+                {
+                    if (nota.second.ccId == targetCCid) 
+                    {
+                        tmp_moms.insert(nota.second.MoM);
+                        //fprintf(stderr, "added mom: %s from txid.%s\n",nota.second.MoM.GetHex().data(), nota.first.GetHex().data());
                     }
+                }
             }
         }
     }
-
     // Not enough own notarisations found to return determinate MoMoM
     destNotarisationTxid = uint256();
     moms.clear();
     return uint256();
 
 end:
+    // add set to vector. Set makes sure there are no dupes included. 
+    moms.clear();
+    std::copy(tmp_moms.begin(), tmp_moms.end(), std::back_inserter(moms));
+    //fprintf(stderr, "SeenOwnNotarisations.%i moms.size.%li blocks scanned.%i\n",seenOwnNotarisations, moms.size(), i);
     return GetMerkleRoot(moms);
 }
 
