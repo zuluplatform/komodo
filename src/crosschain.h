@@ -43,6 +43,7 @@ void CompleteImportTransaction(CTransaction &importTx);
 
 /* On assetchain */
 bool CheckMoMoM(uint256 kmdNotarisationHash, uint256 momom);
+bool CheckNotariesApproval(uint256 burntxid, const std::vector<uint256> & notaryTxids);
 
 
 #endif /* CROSSCHAIN_H */
