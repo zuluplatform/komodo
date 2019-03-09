@@ -630,6 +630,7 @@ UniValue selfimport(const UniValue& params, bool fHelp)
 
         burnTx = templateMtx;					// complete the creation of 'quasi-burn' tx
 
+        sourceTxHex = HexStr(E_MARSHAL(ss << sourceMtx));
         importTxHex = HexStr(E_MARSHAL(ss << MakeImportCoinTransaction(proofNull, burnTx, vouts)));
       
         result.push_back(Pair("SourceTxHex", sourceTxHex));
