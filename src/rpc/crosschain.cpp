@@ -59,6 +59,7 @@ extern std::string ASSETCHAINS_SELFIMPORT;
 std::string MakeSelfImportSourceTx(CTxDestination &dest, int64_t amount, CMutableTransaction &mtx);
 int32_t GetSelfimportProof(std::string source, CMutableTransaction &mtx, CScript &scriptPubKey, TxProof &proof, std::string rawsourcetx, int32_t &ivout, uint256 sourcetxid, uint64_t burnAmount);
 std::string MakeGatewaysImportTx(uint64_t txfee, uint256 bindtxid, int32_t height, std::string refcoin, std::vector<uint8_t> proof, std::string rawburntx, int32_t ivout, uint256 burntxid);
+void CheckBurnTxSource(uint256 burntxid, std::string &targetSymbol, uint32_t &targetCCid);
 
 UniValue assetchainproof(const UniValue& params, bool fHelp)
 {
@@ -360,7 +361,7 @@ UniValue migrate_createburntransaction(const UniValue& params, bool fHelp)
 
 
 // util func to check burn tx and source chain params
-void CheckBurnTxSource(uint256 burntxid) {
+void CheckBurnTxSource(uint256 burntxid, std::string &targetSymbol, uint32_t &targetCCid) {
 
     CTransaction burnTx;
     uint256 blockHash;
@@ -370,8 +371,6 @@ void CheckBurnTxSource(uint256 burntxid) {
     if (blockHash.IsNull())
         throw std::runtime_error("burn tx still in mempool");
 
-    std::string targetSymbol;
-    uint32_t targetCCid;
     uint256 payoutsHash;
     std::vector<uint8_t>rawproof;
 
@@ -429,7 +428,9 @@ UniValue migrate_createimporttransaction(const UniValue& params, bool fHelp)
         importProof = ImportProof(GetAssetchainProof(burnTx.GetHash(), burnTx));
     }
     else   {
-        CheckBurnTxSource(burnTx.GetHash());
+        std::string targetSymbol;
+        uint32_t targetCCid;
+        CheckBurnTxSource(burnTx.GetHash(), targetSymbol, targetCCid);
 
         // get notary import proof
         std::vector<uint256> notaryTxids;
@@ -491,14 +492,21 @@ UniValue migrate_checkburntransactionsource(const UniValue& params, bool fHelp)
         throw runtime_error("Must be called on asset chain");
 
     uint256 burntxid = Parseuint256(params[0].get_str().c_str());
-    CheckBurnTxSource(burntxid);
+    std::string targetSymbol;
+    uint32_t targetCCid;
+    CheckBurnTxSource(burntxid, targetSymbol, targetCCid);
 
     // get tx proof for burn tx
     UniValue nextparams(UniValue::VARR);
     UniValue txids(UniValue::VARR);
     txids.push_back(burntxid.GetHex());
     nextparams.push_back(txids);
-    return gettxoutproof(nextparams, false);
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("TargetSymbol", targetSymbol));
+    result.push_back(Pair("TargetCCid", std::to_string(targetCCid)));
+    result.push_back(Pair("TxOutProof", gettxoutproof(nextparams, false)));
+    return result;
 }
 
 // creates a tx for the dest chain with txproof
