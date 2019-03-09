@@ -36,6 +36,10 @@
 
 #include "key_io.h"
 
+#include "merkleblock.h"
+
+#include "cc/CCinclude.h"
+
 #include <stdint.h>
 #include <univalue.h>
 #include <regex>
@@ -50,11 +54,12 @@ int32_t komodo_MoMoMdata(char *hexstr,int32_t hexsize,struct komodo_ccdataMoMoM 
 struct komodo_ccdata_entry *komodo_allMoMs(int32_t *nump,uint256 *MoMoMp,int32_t kmdstarti,int32_t kmdendi);
 uint256 komodo_calcMoM(int32_t height,int32_t MoMdepth);
 extern std::string ASSETCHAINS_SELFIMPORT;
-uint256 Parseuint256(char *hexstr);
+//uint256 Parseuint256(const char *hexstr);
 
-std::string MakeSelfImportSourceTx(CTxDestination &dest, int64_t amount, CMutableTransaction &mtx);
-int32_t GetSelfimportProof(std::string source, CMutableTransaction &mtx, CScript &scriptPubKey, TxProof &proof, std::string rawsourcetx, int32_t &ivout, uint256 sourcetxid, uint64_t burnAmount);
-std::string MakeGatewaysImportTx(uint64_t txfee, uint256 bindtxid, int32_t height, std::string refcoin, std::vector<uint8_t>proof, std::string rawburntx, int32_t ivout, uint256 burntxid);
+CMutableTransaction MakeSelfImportSourceTx(CTxDestination &dest, int64_t amount);
+int32_t GetSelfimportProof(const CMutableTransaction &sourceMtx, CMutableTransaction &templateMtx, ImportProof &proofNull);
+std::string MakeGatewaysImportTx(uint64_t txfee, uint256 bindtxid, int32_t height, std::string refcoin, std::vector<uint8_t> proof, std::string rawburntx, int32_t ivout, uint256 burntxid);
+void CheckBurnTxSource(uint256 burntxid, std::string &targetSymbol, uint32_t &targetCCid);
 
 UniValue assetchainproof(const UniValue& params, bool fHelp)
 {
@@ -246,6 +251,138 @@ UniValue migrate_converttoexport(const UniValue& params, bool fHelp)
     return ret;
 }
 
+// creates burn tx as an alternative to 'migrate_converttoexport()'
+UniValue migrate_createburntransaction(const UniValue& params, bool fHelp)
+{
+    UniValue ret(UniValue::VOBJ);
+    //uint8_t *ptr; 
+    //uint8_t i; 
+    uint32_t ccid = ASSETCHAINS_CC;
+    int64_t txfee = 10000;
+
+    if (fHelp || params.size() != 3 && params.size() != 4)
+        throw runtime_error(
+            "migrate_createburntransaction dest_symbol dest_addr amount [tokenid]\n"
+            "\nCreates a burn transaction and payouts to make a cross-chain coin or non-fungible token transfer.\n"
+            "The parameters:\n"
+            "dest_symbol -  destination chain ac_name\n"
+            "dest_addr -   address on the destination chain where coins are to be sent or pubkey if tokens are to be sent\n"
+            "amount -      amount in coins to be burned on the source chain and sent to the destination address/pubkey on the destination chain, for tokens should be equal to 1\n"
+            "tokenid -     token id, if tokens are transferred (optional). Only non-fungible tokens are supported\n"
+            "\n"
+            "The created burn transaction should be sent using sendrawtransaction to the source chain\n"
+            "The hex representation of the burn transaction with the payouts should be also passed to "
+            "the \"migrate_createimporttransaction\" method on a KMD node to get the corresponding "
+            "import transaction.\n"
+        );
+
+    if (ASSETCHAINS_CC < KOMODO_FIRSTFUNGIBLEID)
+        throw runtime_error("-ac_cc < KOMODO_FIRSTFUNGIBLEID");
+
+    if (ASSETCHAINS_SYMBOL[0] == 0)
+        throw runtime_error("Must be called on assetchain");
+
+    //    vector<uint8_t> txData(ParseHexV(params[0], "argument 1"));
+    // CMutableTransaction tx;
+    //    if (!E_UNMARSHAL(txData, ss >> tx))
+    //        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
+
+    string targetSymbol = params[0].get_str();
+    if (targetSymbol.size() == 0 || targetSymbol.size() > 32)
+        throw runtime_error("targetSymbol length must be >0 and <=32");
+
+    if (strcmp(ASSETCHAINS_SYMBOL, targetSymbol.c_str()) == 0)
+        throw runtime_error("cant send a coin to the same chain");
+
+    std::string dest_addr_or_pubkey = params[1].get_str();
+
+    CAmount burnAmount = (CAmount)(atof(params[2].get_str().c_str()) * COIN + 0.00000000499999);
+
+    //    for (int i = 0; i<tx.vout.size(); i++) burnAmount += tx.vout[i].nValue;
+    if (burnAmount <= 0)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Cannot export a negative or zero value.");
+    if (burnAmount > 1000000LL * COIN)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Cannot export more than 1 million coins per export.");
+
+    uint256 tokenid = zeroid;
+    if (params.size() == 4)
+        tokenid = Parseuint256(params[3].get_str().c_str());
+
+    // check non-fungible tokens amount
+    if (!tokenid.IsNull() && burnAmount != 1)
+        throw JSONRPCError(RPC_TYPE_ERROR, "For tokens amount should be equal to 1, only non-fungible tokens are supported.");
+
+    CPubKey myPubKey = Mypubkey();
+    struct CCcontract_info *cpDummy, C;
+    cpDummy = CCinit(&C, EVAL_TOKENS);
+
+    CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
+    int64_t inputs;
+    if ((inputs = AddNormalinputs(mtx, myPubKey, burnAmount + txfee, 60)) == 0) {
+        throw runtime_error("Cannot find normal inputs\n");
+    }
+
+    CScript scriptPubKey;
+    if (tokenid == zeroid) {        // coins
+        CTxDestination txdest = DecodeDestination(dest_addr_or_pubkey.c_str());
+        scriptPubKey = GetScriptForDestination(txdest);
+        if (!scriptPubKey.IsPayToPublicKeyHash()) {
+            throw JSONRPCError(RPC_TYPE_ERROR, "Incorrect destination addr.");
+        }
+        mtx.vout.push_back(CTxOut(burnAmount, scriptPubKey));               // 'model' vout
+    }
+    else {   // tokens
+
+             //mtx.vout.push_back(MakeCC1vout(EVAL_TOKENS, assetsupply, mypk));
+             //mtx.vout.push_back(CTxOut(txfee, CScript() << ParseHex(cp->CChexstr) << OP_CHECKSIG));
+             //return(FinalizeCCTx(0, cp, mtx, mypk, txfee, EncodeTokenCreateOpRet('c', Mypubkey(), name, description)));
+    }
+
+    ret.push_back(Pair("payouts", HexStr(E_MARSHAL(ss << mtx.vout))));  // save 'model' vout
+
+    const std::string chainSymbol(ASSETCHAINS_SYMBOL);
+    std::vector<uint8_t> rawproof(chainSymbol.begin(), chainSymbol.end());
+    //make opret with burned amount:
+    CTxOut burnOut = MakeBurnOutput(burnAmount + txfee, ccid, targetSymbol, mtx.vout, rawproof);
+
+    mtx.vout.clear();               // remove 'model' vout
+
+    int64_t change = inputs - (burnAmount + txfee);
+    if (change != 0)
+        mtx.vout.push_back(CTxOut(change, CScript() << ParseHex(HexStr(myPubKey)) << OP_CHECKSIG));
+
+    mtx.vout.push_back(burnOut);    // mtx now has only burned vout (that is, amount sent to OP_RETURN)
+
+    std::string exportTxHex = FinalizeCCTx(0, cpDummy, mtx, myPubKey, txfee, CScript()/*no opret*/);
+    ret.push_back(Pair("hex", HexStr(E_MARSHAL(ss << mtx))));
+
+    return ret;
+}
+
+
+// util func to check burn tx and source chain params
+void CheckBurnTxSource(uint256 burntxid, std::string &targetSymbol, uint32_t &targetCCid) {
+
+    CTransaction burnTx;
+    uint256 blockHash;
+    if (!GetTransaction(burntxid, burnTx, blockHash, true))
+        throw std::runtime_error("cannot find burn transaction");
+
+    if (blockHash.IsNull())
+        throw std::runtime_error("burn tx still in mempool");
+
+    uint256 payoutsHash;
+    std::vector<uint8_t>rawproof;
+
+    if (!UnmarshalBurnTx(burnTx, targetSymbol, &targetCCid, payoutsHash, rawproof))
+        throw std::runtime_error("cannot unmarshal burn tx data");
+
+    if (targetCCid != ASSETCHAINS_CC)
+        throw std::runtime_error("incorrect CCid in burn tx");
+
+    if (targetSymbol == ASSETCHAINS_SYMBOL)
+        throw std::runtime_error("Must not be called on the destination chain");
+}
 
 /*
  * The process to migrate funds
@@ -263,9 +400,11 @@ UniValue migrate_converttoexport(const UniValue& params, bool fHelp)
 
 UniValue migrate_createimporttransaction(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() != 2)
-        throw runtime_error("migrate_createimporttransaction burnTx payouts\n\n"
-                "Create an importTx given a burnTx and the corresponding payouts, hex encoded");
+    if (fHelp || params.size() < 2)
+        throw runtime_error("migrate_createimporttransaction burnTx payouts [notarytxid-1]..[notarytxid-N]\n\n"
+                "Create an importTx given a burnTx and the corresponding payouts, hex encoded\n"
+                "optional notarytxids are txids of notary operator proofs of burn tx existense (from destination chain).\n"
+                "Do not make subsequent call to migrate_completeimporttransaction if notary txids are set");
 
     if (ASSETCHAINS_CC < KOMODO_FIRSTFUNGIBLEID)
         throw runtime_error("-ac_cc < KOMODO_FIRSTFUNGIBLEID");
@@ -279,19 +418,35 @@ UniValue migrate_createimporttransaction(const UniValue& params, bool fHelp)
     if (!E_UNMARSHAL(txData, ss >> burnTx))
         throw runtime_error("Couldn't parse burnTx");
 
-
     vector<CTxOut> payouts;
     if (!E_UNMARSHAL(ParseHexV(params[1], "argument 2"), ss >> payouts))
         throw runtime_error("Couldn't parse payouts");
 
-    uint256 txid = burnTx.GetHash();
-    TxProof proof = GetAssetchainProof(burnTx.GetHash(),burnTx);
+    ImportProof importProof;
+    if (params.size() == 2) {
+        // get MoM import proof
+        importProof = ImportProof(GetAssetchainProof(burnTx.GetHash(), burnTx));
+    }
+    else   {
+        std::string targetSymbol;
+        uint32_t targetCCid;
+        CheckBurnTxSource(burnTx.GetHash(), targetSymbol, targetCCid);
 
-    CTransaction importTx = MakeImportCoinTransaction(proof, burnTx, payouts);
+        // get notary import proof
+        std::vector<uint256> notaryTxids;
+        for (int i = 2; i < params.size(); i++) {
+            uint256 txid = Parseuint256(params[i].get_str().c_str());
+            if (txid.IsNull())
+                throw runtime_error("Incorrect notary approval txid");
+            notaryTxids.push_back(txid);
+        }
+        importProof = ImportProof(notaryTxids);
+    }
+
+    CTransaction importTx = MakeImportCoinTransaction(importProof, burnTx, payouts);
 
     return HexStr(E_MARSHAL(ss << importTx));
 }
-
 
 UniValue migrate_completeimporttransaction(const UniValue& params, bool fHelp)
 {
@@ -312,45 +467,120 @@ UniValue migrate_completeimporttransaction(const UniValue& params, bool fHelp)
     return HexStr(E_MARSHAL(ss << importTx));
 }
 
+/*
+* Alternate coin migration solution if MoMoM migration has failed
+*
+* The workflow:
+* On the source chain user calls migrate_createburntransaction, sends the burn tx to the chain and sends its txid and the source chain name to the notary operators (off-chain)
+* the notary operators call migrate_checkburntransactionsource on the source chain
+* on the destination chain the notary operators call migrate_createnotaryapprovaltransaction and pass the burn txid and txoutproof received from the previous call, 
+* the notary operators send the approval transactions to the chain and send their txids to the user (off-chain)
+* on the source chain the user calls migrate_createimporttransaction and passes to it notary txids as additional parameters
+* then the user sends the import transaction to the destination chain (where the notary approvals will be validated)
+*/
+
+// checks if burn tx exists and params stored in the burn tx match to the source chain
+// returns txproof
+// run it on the source chain
+UniValue migrate_checkburntransactionsource(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error("migrate_checkburntransactionsource burntxid\n\n"
+            "checks if params stored in the burn tx match to its tx chain");
+
+    if (ASSETCHAINS_SYMBOL[0] == 0)
+        throw runtime_error("Must be called on asset chain");
+
+    uint256 burntxid = Parseuint256(params[0].get_str().c_str());
+    std::string targetSymbol;
+    uint32_t targetCCid;
+    CheckBurnTxSource(burntxid, targetSymbol, targetCCid);
+
+    // get tx proof for burn tx
+    UniValue nextparams(UniValue::VARR);
+    UniValue txids(UniValue::VARR);
+    txids.push_back(burntxid.GetHex());
+    nextparams.push_back(txids);
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("TargetSymbol", targetSymbol));
+    result.push_back(Pair("TargetCCid", std::to_string(targetCCid)));
+    result.push_back(Pair("TxOutProof", gettxoutproof(nextparams, false)));
+    return result;
+}
+
+// creates a tx for the dest chain with txproof
+// used as a momom-backup manual import solution
+// run it on the dest chain
+UniValue migrate_createnotaryapprovaltransaction(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 2)
+        throw runtime_error("migrate_createnotaryapprovaltransaction burntxid txoutproof\n\n"
+            "Creates a tx for destination chain with burn tx proof\n"
+            "txoutproof should be retrieved by komodo-cli migrate_checkburntransactionsource call on the source chain\n" );
+
+    if (ASSETCHAINS_SYMBOL[0] == 0)
+        throw runtime_error("Must be called on asset chain");
+
+    /*string srcSymbol = params[0].get_str();
+    if (srcSymbol.size() == 0 || srcSymbol.size() > 32)
+        throw runtime_error("srcchain length must be >0 and <=32");
+    if (strcmp(ASSETCHAINS_SYMBOL, srcSymbol.c_str()) == 0)
+        throw runtime_error("cant send a coin to the same chain");*/
+
+    uint256 burntxid = Parseuint256(params[0].get_str().c_str());
+    if (burntxid.IsNull())
+        throw runtime_error("Couldn't parse burntxid or it is null");
+
+    std::vector<uint8_t> proofData = ParseHex(params[1].get_str());
+    CMerkleBlock merkleBlock;
+    std::vector<uint256> prooftxids;
+    if (!E_UNMARSHAL(proofData, ss >> merkleBlock))
+        throw runtime_error("Couldn't parse txoutproof");
+
+    merkleBlock.txn.ExtractMatches(prooftxids);
+    if (std::find(prooftxids.begin(), prooftxids.end(), burntxid) == prooftxids.end())
+        throw runtime_error("No burntxid in txoutproof");
+
+    const int64_t txfee = 10000;
+    struct CCcontract_info *cpDummy, C;
+    cpDummy = CCinit(&C, EVAL_TOKENS);  // just for FinalizeCCtx to work 
+
+    // creating a tx with proof:
+    CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
+    int64_t inputs;
+    if ((inputs = AddNormalinputs(mtx, Mypubkey(), txfee*2, 4)) == 0) {
+        throw runtime_error("Cannot find normal inputs\n");
+    }
+
+    mtx.vout.push_back(CTxOut(txfee, CScript() << ParseHex(HexStr(Mypubkey())) << OP_CHECKSIG));
+
+    return FinalizeCCTx(0, cpDummy, mtx, Mypubkey(), txfee, CScript() << OP_RETURN << E_MARSHAL(ss /*<< srcSymbol << revuint256(burntxid)*/ << proofData;));
+}
+
+// creates a source 'quasi-burn' tx for AC_PUBKEY
+// run it on the same asset chain
 UniValue selfimport(const UniValue& params, bool fHelp)
 {
     UniValue result(UniValue::VOBJ);
-    CMutableTransaction sourceMtx, templateMtx;
     std::string destaddr;
     std::string source; 
-    std::string rawsourcetx;
+    std::string sourceTxHex;
+    std::string importTxHex;
     CTransaction burnTx; 
     CTxOut burnOut; 
     uint64_t burnAmount; 
     uint256 sourcetxid, blockHash; 
 	std::vector<CTxOut> vouts; 
-	std::vector<uint8_t> rawproof, rawproofEmpty;
-    int32_t ivout = 0;
-    CScript scriptPubKey;
-    TxProof proof;
+	std::vector<uint8_t> rawproof;
 
     if ( ASSETCHAINS_SELFIMPORT.size() == 0 )
         throw runtime_error("selfimport only works on -ac_import chains");
 
     if (fHelp || params.size() != 2)
         throw runtime_error("selfimport destaddr amount\n"
-                  //old:    "selfimport rawsourcetx sourcetxid {nvout|\"find\"} amount \n"
                   //TODO:   "or selfimport rawburntx burntxid {nvout|\"find\"} rawproof source bindtxid height} \n"
                             "\ncreates self import coin transaction");
-
-/* OLD selfimport schema:
-    rawsourcetx = params[0].get_str();
-    sourcetxid = Parseuint256((char *)params[1].get_str().c_str()); // allow for txid != hash(rawtx)
-
-	int32_t ivout = -1;
-	if( params[2].get_str() != "find" ) {
-		if( !std::all_of(params[2].get_str().begin(), params[2].get_str().end(), ::isdigit) )  // check if not all chars are digit
-			throw std::runtime_error("incorrect nvout param");
-
-		ivout = atoi(params[2].get_str().c_str());
-	}
-
-    burnAmount = atof(params[3].get_str().c_str()) * COIN + 0.00000000499999;  */
 
     destaddr = params[0].get_str();
     burnAmount = atof(params[1].get_str().c_str()) * COIN + 0.00000000499999;
@@ -383,50 +613,48 @@ UniValue selfimport(const UniValue& params, bool fHelp)
     }
     else if (source == "PUBKEY")
     {
-
+        ImportProof proofNull;
         CTxDestination dest = DecodeDestination(destaddr.c_str());
-        rawsourcetx = MakeSelfImportSourceTx(dest, burnAmount, sourceMtx);
-        sourcetxid = sourceMtx.GetHash();
-
+        CMutableTransaction sourceMtx = MakeSelfImportSourceTx(dest, burnAmount);  // make self-import source tx
+        vscript_t rawProofEmpty;
+        
+        CMutableTransaction templateMtx;
         // prepare self-import 'quasi-burn' tx and also create vout for import tx (in mtx.vout):
-        if (GetSelfimportProof(source, templateMtx, scriptPubKey, proof, rawsourcetx, ivout, sourcetxid, burnAmount) < 0)
-            throw std::runtime_error("Failed validating selfimport");
+        if (GetSelfimportProof(sourceMtx, templateMtx, proofNull) < 0)
+            throw std::runtime_error("Failed creating selfimport template tx");
 
         vouts = templateMtx.vout;
-        burnOut = MakeBurnOutput(burnAmount, 0xffffffff, ASSETCHAINS_SELFIMPORT, vouts, rawproofEmpty);
+        burnOut = MakeBurnOutput(burnAmount, 0xffffffff, ASSETCHAINS_SELFIMPORT, vouts, rawProofEmpty);
         templateMtx.vout.clear();
         templateMtx.vout.push_back(burnOut);	// burn tx has only opret with vouts and optional proof
 
         burnTx = templateMtx;					// complete the creation of 'quasi-burn' tx
 
-        std::string hextx = HexStr(E_MARSHAL(ss << MakeImportCoinTransaction(proof, burnTx, vouts)));
-
-        CTxDestination address;
-        bool fValidAddress = ExtractDestination(scriptPubKey, address);
-       
-        result.push_back(Pair("sourceTxHex", rawsourcetx));
-        result.push_back(Pair("importTxHex", hextx));
-        result.push_back(Pair("UsedRawtxVout", ivout));   // notify user about the used vout of rawtx
-        result.push_back(Pair("DestinationAddress", EncodeDestination(address)));  // notify user about the address where the funds will be sent
-
+        sourceTxHex = HexStr(E_MARSHAL(ss << sourceMtx));
+        importTxHex = HexStr(E_MARSHAL(ss << MakeImportCoinTransaction(proofNull, burnTx, vouts)));
+      
+        result.push_back(Pair("SourceTxHex", sourceTxHex));
+        result.push_back(Pair("ImportTxHex", importTxHex));
+ 
         return result;
     }
     else if (source == ASSETCHAINS_SELFIMPORT)
     {
+        /////////////////////////////////////////////////
         throw std::runtime_error("not implemented yet\n");
+        int32_t ivout = 0;
 
-        if (params.size() != 8) 
-            throw runtime_error("use \'selfimport rawburntx burntxid nvout rawproof source bindtxid height\' to import from a coin chain\n");
+        //if (params.size() != 8) 
+        //    throw runtime_error("use \'selfimport rawburntx burntxid nvout rawproof source bindtxid height\' to import from a coin chain\n");
        
         uint256 bindtxid = Parseuint256((char *)params[6].get_str().c_str()); 
         int32_t height = atoi((char *)params[7].get_str().c_str());
 
-
         // source is external coin is the assetchains symbol in the burnTx OP_RETURN
         // burnAmount, rawtx and rawproof should be enough for gatewaysdeposit equivalent
-        std::string hextx = MakeGatewaysImportTx(0, bindtxid, height, source, rawproof, rawsourcetx, ivout, sourcetxid);
+        importTxHex = MakeGatewaysImportTx(0, bindtxid, height, source, rawproof, sourceTxHex, ivout, sourcetxid);
 
-        result.push_back(Pair("hex", hextx));
+        result.push_back(Pair("ImportTxHex", importTxHex));
         result.push_back(Pair("UsedRawtxVout", ivout));   // notify user about the used vout of rawtx
     }
     return result;
@@ -561,7 +789,7 @@ UniValue getimports(const UniValue& params, bool fHelp)
         {
             UniValue objTx(UniValue::VOBJ);
             objTx.push_back(Pair("txid",tx.GetHash().ToString()));
-            TxProof proof; CTransaction burnTx; std::vector<CTxOut> payouts; CTxDestination importaddress;
+            ImportProof proof; CTransaction burnTx; std::vector<CTxOut> payouts; CTxDestination importaddress;
             TotalImported += tx.vout[1].nValue;
             objTx.push_back(Pair("amount", ValueFromAmount(tx.vout[1].nValue)));
             if (ExtractDestination(tx.vout[1].scriptPubKey, importaddress))

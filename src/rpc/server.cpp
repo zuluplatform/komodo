@@ -351,8 +351,11 @@ static const CRPCCommand vRPCCommands[] =
     { "crosschain",         "scanNotarisationsDB",    &scanNotarisationsDB,    true },
     { "crosschain",         "getimports",             &getimports,             true },
     { "crosschain",         "migrate_converttoexport", &migrate_converttoexport, true  },
+    { "crosschain",         "migrate_createburntransaction", &migrate_createburntransaction, true },
     { "crosschain",         "migrate_createimporttransaction", &migrate_createimporttransaction, true  },
     { "crosschain",         "migrate_completeimporttransaction", &migrate_completeimporttransaction, true  },
+    { "crosschain",         "migrate_checkburntransactionsource", &migrate_checkburntransactionsource, true },
+    { "crosschain",         "migrate_createnotaryapprovaltransaction", &migrate_createnotaryapprovaltransaction, true },
     { "crosschain",         "selfimport", &selfimport, true  },
 
     /* Mining */

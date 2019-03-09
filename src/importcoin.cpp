@@ -26,7 +26,7 @@
 
 int32_t komodo_nextheight();
 
-CTransaction MakeImportCoinTransaction(const TxProof proof, const CTransaction burnTx, const std::vector<CTxOut> payouts, uint32_t nExpiryHeightOverride)
+CTransaction MakeImportCoinTransaction(const ImportProof &proof, const CTransaction &burnTx, const std::vector<CTxOut> &payouts, uint32_t nExpiryHeightOverride)
 {
     std::vector<uint8_t> payload = E_MARSHAL(ss << EVAL_IMPORTCOIN);
     CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
@@ -43,7 +43,7 @@ CTransaction MakeImportCoinTransaction(const TxProof proof, const CTransaction b
 }
 
 
-CTxOut MakeBurnOutput(CAmount value, uint32_t targetCCid, std::string targetSymbol, const std::vector<CTxOut> payouts,std::vector<uint8_t> rawproof)
+CTxOut MakeBurnOutput(CAmount value, uint32_t targetCCid, const std::string &targetSymbol, const std::vector<CTxOut> &payouts, const std::vector<uint8_t> &rawproof)
 {
     std::vector<uint8_t> opret;
     opret = E_MARSHAL(ss << VARINT(targetCCid);
@@ -54,8 +54,7 @@ CTxOut MakeBurnOutput(CAmount value, uint32_t targetCCid, std::string targetSymb
 }
 
 
-bool UnmarshalImportTx(const CTransaction &importTx, TxProof &proof, CTransaction &burnTx,
-        std::vector<CTxOut> &payouts)
+bool UnmarshalImportTx(const CTransaction &importTx, ImportProof &proof, CTransaction &burnTx, std::vector<CTxOut> &payouts)
 {
     std::vector<uint8_t> vData;
     GetOpReturnData(importTx.vout[0].scriptPubKey, vData);
@@ -84,7 +83,7 @@ bool UnmarshalBurnTx(const CTransaction &burnTx, std::string &targetSymbol, uint
  */
 CAmount GetCoinImportValue(const CTransaction &tx)
 {
-    TxProof proof;
+    ImportProof proof;
     CTransaction burnTx;
     std::vector<CTxOut> payouts;
     if (UnmarshalImportTx(tx, proof, burnTx, payouts)) {
