@@ -117,16 +117,6 @@ UniValue crosschainproof(const UniValue& params, bool fHelp)
         }
     } else ret.push_back(Pair("error",(char *)"no MoM for height"));
     
-    MoMoM fix: This still may be needed! 
-        `uint256 MoMoM = CalculateProofRoot(symbol, ccid, kmdheight, moms, destNotarisationTxid);`
-         must check that the first notarization it is using is itself notarized on KMD. 
-         lastnotarized height function will be safe enough (better still is to use DB and count back 2 nota of KMD, as this makes sure the nota is in the chain on resync)
-            notarized height is faster, DB slower, its safe to assume all notaries are online, and as such cannot reorg past the last notarized height. 
-    
-    With the above we also need to use a larger range to scan back for MoM hashes to account for KMD having long gaps in notarizations.
-    maybe an exception for some maximum height, incase notarizations break totally for some reason. Need a nice buffer here, skipping ANY MoM hash 
-    means that coins can be lost! 
-    
     return ret;
 } */
 int32_t komodo_notarized_height(int32_t *prevMoMheightp,uint256 *hashp,uint256 *txidp);
@@ -147,14 +137,6 @@ UniValue MoMoMdata(const UniValue& params, bool fHelp)
     uint256 destNotarisationTxid;
     std::vector<uint256> moms;
     uint256 MoMoM = CalculateProofRoot(symbol, ccid, kmdheight, moms, destNotarisationTxid);
-    if ( MoMoM.IsNull() ) 
-    {
-        // MoMoM is empty, skip this round and try again next round.
-        // iguana will check if there are the required number MoM on the chain via getinfo call.
-        // if the amount of required notarizations have not yet happened, then iguana will ignore this error, 
-        // notarizing a null MoMoM, this enables the required amount of MoM to exist first. 
-        ret.push_back(Pair("error","MoMoM is null."));
-    }
     UniValue valMoms(UniValue::VARR);
     for (int i=0; i<moms.size(); i++) valMoms.push_back(moms[i].GetHex());
     ret.push_back(Pair("MoMs", valMoms));
@@ -295,10 +277,11 @@ UniValue migrate_createimporttransaction(const UniValue& params, bool fHelp)
 
 UniValue migrate_completeimporttransaction(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
-        throw runtime_error("migrate_completeimporttransaction importTx\n\n"
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error("migrate_completeimporttransaction importTx offset\n\n"
                 "Takes a cross chain import tx with proof generated on assetchain "
-                "and extends proof to target chain proof root");
+                "and extends proof to target chain proof root\n"
+                "offset is optional, use it to increase the used KMD height, use when import fails.");
 
     if (ASSETCHAINS_SYMBOL[0] != 0)
         throw runtime_error("Must be called on KMD");
@@ -306,8 +289,12 @@ UniValue migrate_completeimporttransaction(const UniValue& params, bool fHelp)
     CTransaction importTx;
     if (!E_UNMARSHAL(ParseHexV(params[0], "argument 1"), ss >> importTx))
         throw runtime_error("Couldn't parse importTx");
+    
+    int32_t offset = 0;
+    if ( params.size() == 2 )
+        offset = params[1].get_int();
 
-    CompleteImportTransaction(importTx);
+    CompleteImportTransaction(importTx, offset);
 
     return HexStr(E_MARSHAL(ss << importTx));
 }

@@ -172,6 +172,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getproofroot", 2},
     //{ "height_MoM", 1},
     { "calc_MoM", 2},
+    { "migrate_completeimporttransaction", 1}
 };
 
 class CRPCConvertTable

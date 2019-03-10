@@ -302,18 +302,16 @@ UniValue getinfo(const UniValue& params, bool fHelp)
     if ( ASSETCHAINS_CC != 0 )
     {
         obj.push_back(Pair("CCid",        (int)ASSETCHAINS_CC));
-        if ( ASSETCHAINS_CC > 1 )
+        /*if ( ASSETCHAINS_CC > 1 )
         {
-            // Maybe this needs to be in a function or its own RPC so that it can request the limit. 
-            // This is to make sure the approprtiate MoM hash exist on chain to calculate a MoMoM hash.
-            // keep stepping back MoM heights until we get to the same level as CalculateProofRoot uses. 
+            // isnt needed any more! NULL MoMoM is fixed! 
             int limit = 3;
             int ppMoMheight = komodo_prevMoMheight(prevMoMheight-1);
             for (int8_t i = 0; i < limit; i++) {
                 ppMoMheight = komodo_prevMoMheight(ppMoMheight-1);
             }
             obj.push_back(Pair("ppMoMheight",(int)ppMoMheight));
-        }
+        } */
     }
     obj.push_back(Pair("name",        ASSETCHAINS_SYMBOL[0] == 0 ? "KMD" : ASSETCHAINS_SYMBOL));
     obj.push_back(Pair("sapling", ASSETCHAINS_SAPLING));
