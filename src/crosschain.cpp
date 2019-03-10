@@ -18,6 +18,9 @@
 #include "importcoin.h"
 #include "main.h"
 #include "notarisationdb.h"
+#include "merkleblock.h"
+
+#include "cc/CCinclude.h"
 
 /*
  * The crosschain workflow.
@@ -41,6 +44,7 @@
 
 int NOTARISATION_SCAN_LIMIT_BLOCKS = 2880; // temp change this so that current chains can continue! 1440 default.
 CBlockIndex *komodo_getblockindex(uint256 hash);
+extern int32_t komodo_notaries(uint8_t pubkeys[64][33], int32_t height, uint32_t timestamp);
 
 
 /* On KMD */
@@ -246,7 +250,7 @@ cont:
  */
 void CompleteImportTransaction(CTransaction &importTx, int32_t offset)
 {
-    TxProof proof; CTransaction burnTx; std::vector<CTxOut> payouts; std::vector<uint8_t> rawproof;
+    ImportProof proof; CTransaction burnTx; std::vector<CTxOut> payouts; std::vector<uint8_t> rawproof;
     if (!UnmarshalImportTx(importTx, proof, burnTx, payouts))
         throw std::runtime_error("Couldn't parse importTx");
 
@@ -255,10 +259,14 @@ void CompleteImportTransaction(CTransaction &importTx, int32_t offset)
     uint256 payoutsHash;
     if (!UnmarshalBurnTx(burnTx, targetSymbol, &targetCCid, payoutsHash, rawproof))
         throw std::runtime_error("Couldn't parse burnTx");
-    
-    proof = GetCrossChainProof(burnTx.GetHash(), targetSymbol.data(), targetCCid, proof, offset);
 
-    importTx = MakeImportCoinTransaction(proof, burnTx, payouts);
+    TxProof merkleBranch;
+    if( !proof.IsMerkleBranch(merkleBranch))
+        throw std::runtime_error("Incorrect import tx proof");
+    TxProof newMerkleBranch = GetCrossChainProof(burnTx.GetHash(), targetSymbol.data(), targetCCid, merkleBranch, offset);
+    ImportProof newProof(newMerkleBranch);
+
+    importTx = MakeImportCoinTransaction(newProof, burnTx, payouts);
 }
 
 
@@ -322,6 +330,110 @@ bool CheckMoMoM(uint256 kmdNotarisationHash, uint256 momom)
     return (bool) ScanNotarisationsFromHeight(block.GetHeight()-100, checkMoMoM, nota);
 
 }
+
+/*
+* Check notaries approvals for the txoutproofs of burn tx
+* (alternate check if MoMoM check has failed)
+* Params:
+* burntxid - txid of burn tx on the source chain
+* rawproof - array of txids of notaries' proofs
+*/
+bool CheckNotariesApproval(uint256 burntxid, const std::vector<uint256> & notaryTxids) 
+{
+    int count = 0;
+
+    // get notaries:
+    uint8_t notaries_pubkeys[64][33];
+    std::vector< std::vector<uint8_t> > alreadySigned;
+
+    //unmarshal notaries approval txids
+    for(auto notarytxid : notaryTxids ) {
+        EvalRef eval;
+        CBlockIndex block;
+        CTransaction notarytx;  // tx with notary approval of txproof existence
+
+        // get notary approval tx
+        if (eval->GetTxConfirmed(notarytxid, notarytx, block)) {
+            
+            std::vector<uint8_t> vopret;
+            if (!notarytx.vout.empty() && GetOpReturnData(notarytx.vout.back().scriptPubKey, vopret)) {
+                std::vector<uint8_t> txoutproof;
+
+                if (E_UNMARSHAL(vopret, ss >> txoutproof)) {
+                    CMerkleBlock merkleBlock;
+                    std::vector<uint256> prooftxids;
+                    // extract block's merkle tree
+                    if (E_UNMARSHAL(txoutproof, ss >> merkleBlock)) {
+
+                        // extract proven txids:
+                        merkleBlock.txn.ExtractMatches(prooftxids);
+                        if (merkleBlock.txn.ExtractMatches(prooftxids) != merkleBlock.header.hashMerkleRoot ||  // check block merkle root is correct
+                            std::find(prooftxids.begin(), prooftxids.end(), burntxid) != prooftxids.end()) {    // check burn txid is in proven txids list
+                            
+                            if (komodo_notaries(notaries_pubkeys, block.GetHeight(), block.GetBlockTime()) >= 0) {
+                                // check it is a notary who signed approved tx:
+                                for (int i = 0; i < sizeof(notaries_pubkeys) / sizeof(notaries_pubkeys[0]); i++) {
+                                    std::vector<uint8_t> vnotarypubkey(notaries_pubkeys[i], notaries_pubkeys[i] + 33);
+
+#ifdef TESTMODE
+                                    uint8_t test_notary_pubkey33[33];
+                                    decode_hex(test_notary_pubkey33, 33, "029fa302968bbae81f41983d2ec20445557b889d31227caec5d910d19b7510ef86");
+#endif
+                                    if (CheckVinPubKey(notarytx, 0, notaries_pubkeys[i])   // is signed by a notary?
+                                        && std::find(alreadySigned.begin(), alreadySigned.end(), vnotarypubkey) == alreadySigned.end()   // check if notary not re-used
+#ifdef TESTMODE                                        
+                                        || CheckVinPubKey(notarytx, 0, test_notary_pubkey33)  // test
+#endif
+                                    )   {
+                                        alreadySigned.push_back(vnotarypubkey);
+                                        count++;
+                                        LOGSTREAM("importcoin", CCLOG_DEBUG1, stream << "CheckNotariesApproval() notary approval checked, count=" << count << std::endl);
+                                        break;
+                                    }
+                                    if (i == sizeof(notaries_pubkeys) / sizeof(notaries_pubkeys[0]))
+                                        LOGSTREAM("importcoin", CCLOG_INFO, stream << "CheckNotariesApproval() txproof not signed by a notary" << std::endl);
+                                }
+                            }
+                            else {
+                                LOGSTREAM("importcoin", CCLOG_INFO, stream << "CheckNotariesApproval() cannot get current notaries pubkeys" << std::endl);
+                            }
+                        }
+                        else  {
+                            LOGSTREAM("importcoin", CCLOG_INFO, stream << "CheckNotariesApproval() burntxid not found in txoutproof or incorrect txoutproof" << std::endl);
+                        }
+                    }
+                    else {
+                        LOGSTREAM("importcoin", CCLOG_INFO, stream << "CheckNotariesApproval() could not unmarshal merkleBlock" << std::endl);
+                    }
+                }
+                else {
+                    LOGSTREAM("importcoin", CCLOG_INFO, stream << "CheckNotariesApproval() could not unmarshal txoutproof" << std::endl);
+                }
+            }
+            else {
+                LOGSTREAM("importcoin", CCLOG_INFO, stream << "CheckNotariesApproval() no opret in the notary tx" << std::endl);
+            }
+        }
+        else {
+            LOGSTREAM("importcoin", CCLOG_INFO, stream << "CheckNotariesApproval() could not load notary tx" << std::endl);
+        }
+    }
+
+    bool retcode;
+#ifdef TESTMODE
+    if (count < 1) { // 1 for test
+#else
+    if (count < 5) { 
+#endif
+        LOGSTREAM("importcoin", CCLOG_INFO, stream << "CheckNotariesApproval() not enough signed notary transactions=" << count << std::endl);
+        retcode = false;
+    }
+    else
+        retcode = true;
+
+    return retcode;
+}
+
  /*
  * On assetchain
  * in: txid
