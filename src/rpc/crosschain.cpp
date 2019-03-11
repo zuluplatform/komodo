@@ -60,6 +60,7 @@ CMutableTransaction MakeSelfImportSourceTx(CTxDestination &dest, int64_t amount)
 int32_t GetSelfimportProof(const CMutableTransaction &sourceMtx, CMutableTransaction &templateMtx, ImportProof &proofNull);
 std::string MakeGatewaysImportTx(uint64_t txfee, uint256 bindtxid, int32_t height, std::string refcoin, std::vector<uint8_t> proof, std::string rawburntx, int32_t ivout, uint256 burntxid);
 void CheckBurnTxSource(uint256 burntxid, std::string &targetSymbol, uint32_t &targetCCid);
+int32_t ensure_CCrequirements(uint8_t evalcode);
 
 UniValue assetchainproof(const UniValue& params, bool fHelp)
 {
@@ -263,6 +264,11 @@ UniValue migrate_createburntransaction(const UniValue& params, bool fHelp)
 
     if (ASSETCHAINS_SYMBOL[0] == 0)
         throw runtime_error("Must be called on assetchain");
+    
+    // if -pubkey not set it sends change to null pubkey. 
+    // we need a better way to return errors from this function!
+    if ( ensure_CCrequirements(225) < 0 )
+        throw runtime_error("You need to set -pubkey, or run setpukbey RPC, or imports are disabled on this chain.");
 
     //    vector<uint8_t> txData(ParseHexV(params[0], "argument 1"));
     // CMutableTransaction tx;
@@ -325,7 +331,7 @@ UniValue migrate_createburntransaction(const UniValue& params, bool fHelp)
     const std::string chainSymbol(ASSETCHAINS_SYMBOL);
     std::vector<uint8_t> rawproof(chainSymbol.begin(), chainSymbol.end());
     //make opret with burned amount:
-    CTxOut burnOut = MakeBurnOutput(burnAmount + txfee, ccid, targetSymbol, mtx.vout, rawproof);
+    CTxOut burnOut = MakeBurnOutput(burnAmount, ccid, targetSymbol, mtx.vout, rawproof);
 
     mtx.vout.clear();               // remove 'model' vout
 

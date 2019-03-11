@@ -199,8 +199,12 @@ TxProof GetCrossChainProof(const uint256 txid, const char* targetSymbol, uint32_
         throw std::runtime_error("Cannot find notarisation for target inclusive of source");
     
     if ( offset != 0 )
+    {
         kmdHeight += offset;
-
+        if ( kmdHeight > chainActive.Height() )
+            throw std::runtime_error("offset higher than KMD chain height");
+    }
+    
     // Get MoMs for kmd height and symbol
     std::vector<uint256> moms;
     uint256 targetChainNotarisationTxid;
