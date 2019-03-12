@@ -93,12 +93,12 @@ uint256 CalculateProofRoot(const char* symbol, uint32_t targetCCid, int kmdHeigh
                 seenOwnNotarisations++;
                 if (seenOwnNotarisations == 1)
                     destNotarisationTxid = nota.first;
-                else if (seenOwnNotarisations == 3)
+                else if (seenOwnNotarisations == 7)
                     goto end;
                 //break;
                 // ^ This will stop the range being 0, but it assumes there are not 2 in the same block!
                 // By using a larger range for MoM hash, even if 2 are in one block it will still have some actual range.
-                // the chances of 3 being in 1 block should be zero, unless something is very very wrong. 
+                // 3 isnt enough! We still get missing MoMoM hash's. 
             }
         }
 
