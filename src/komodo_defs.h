@@ -36,7 +36,7 @@
 
 #define KOMODO_MAXNVALUE (((uint64_t)1 << 63) - 1)
 #define KOMODO_BIT63SET(x) ((x) & ((uint64_t)1 << 63))
-#define KOMODO_VALUETOOBIG(x) ((x) > (uint64_t)10000000000*COIN)
+#define KOMODO_VALUETOOBIG(x) ((x) > (uint64_t)10000000001*COIN)
 
 extern uint8_t ASSETCHAINS_TXPOW,ASSETCHAINS_PUBLIC;
 int32_t MAX_BLOCK_SIZE(int32_t height);
@@ -78,6 +78,7 @@ extern int32_t VERUS_MIN_STAKEAGE;
 extern std::string DONATION_PUBKEY;
 extern uint8_t ASSETCHAINS_PRIVATE;
 extern int32_t USE_EXTERNAL_PUBKEY;
+int tx_height( const uint256 &hash );
 extern char NOTARYADDRS[64][36];
 extern uint8_t NUM_NOTARIES;
 
