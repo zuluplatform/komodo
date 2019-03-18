@@ -10,6 +10,7 @@
 #include "utilstrencodings.h"
 
 #include "sodium.h"
+#include "komodo_defs.h"
 
 #include <cstring>
 #include <exception>
@@ -207,12 +208,14 @@ public:
 * Equihash 150,5 (beam)
 * Equihash 144,5 (SnowGem)
 * Equihash 96,5 (Minex)
+* Equihash 48,5 (regtest)
 * Equihash 210,9 (Aion) */
 
 static Equihash<200,9> Eh200_9;
 static Equihash<150,5> Eh150_5;
 static Equihash<144,5> Eh144_5;
-static Equihash<96,5> Eh96_5;
+static Equihash<ASSETCHAINS_N,ASSETCHAINS_K> Eh96_5;
+static Equihash<48,5> Eh48_5;
 static Equihash<210,9> Eh210_9;
 
 #define EhInitialiseState(n, k, base_state)  \
@@ -222,8 +225,10 @@ static Equihash<210,9> Eh210_9;
         Eh150_5.InitialiseState(base_state);  \
     } else if (n == 144 && k == 5) {         \
         Eh144_5.InitialiseState(base_state); \
-    } else if (n == 96 && k == 5) {          \
+    } else if (n == ASSETCHAINS_N && k == ASSETCHAINS_K) { \
         Eh96_5.InitialiseState(base_state);  \
+    } else if (n == 48 && k == 5) {          \
+        Eh48_5.InitialiseState(base_state);  \
     } else if (n == 210 && k == 9) {          \
         Eh210_9.InitialiseState(base_state);  \
     } else {                                 \
@@ -241,8 +246,10 @@ inline bool EhBasicSolve(unsigned int n, unsigned int k, const eh_HashState& bas
         return Eh150_5.BasicSolve(base_state, validBlock, cancelled);
     } else if (n == 144 && k == 5) { 
         return Eh144_5.BasicSolve(base_state, validBlock, cancelled);
-    } else if (n == 96 && k == 5) { 
+    } else if (n == ASSETCHAINS_N && k == ASSETCHAINS_K) { 
         return Eh96_5.BasicSolve(base_state, validBlock, cancelled);
+    } else if (n == 48 && k == 5) { 
+        return Eh48_5.BasicSolve(base_state, validBlock, cancelled);
     } else if (n == 210 && k == 9) {
         return Eh210_9.BasicSolve(base_state, validBlock, cancelled);
     } else {
@@ -267,8 +274,10 @@ inline bool EhOptimisedSolve(unsigned int n, unsigned int k, const eh_HashState&
         return Eh150_5.OptimisedSolve(base_state, validBlock, cancelled);
     } else if (n == 144 && k == 5) { 
         return Eh144_5.OptimisedSolve(base_state, validBlock, cancelled);
-    } else if (n == 96 && k == 5) { 
+    } else if (n == ASSETCHAINS_N && k == ASSETCHAINS_K) { 
         return Eh96_5.OptimisedSolve(base_state, validBlock, cancelled);
+    } else if (n == 48 && k == 5) { 
+        return Eh48_5.OptimisedSolve(base_state, validBlock, cancelled);
     } else if (n == 210 && k == 9) {
         return Eh210_9.OptimisedSolve(base_state, validBlock, cancelled);
     } else {
@@ -291,8 +300,10 @@ inline bool EhOptimisedSolveUncancellable(unsigned int n, unsigned int k, const 
         ret = Eh150_5.IsValidSolution(base_state, soln); \
     } else if (n == 144 && k == 5) {                      \
         ret = Eh144_5.IsValidSolution(base_state, soln);  \
-    } else if (n == 96 && k == 5) {                      \
+    } else if (n == ASSETCHAINS_N && k == ASSETCHAINS_K) { \
         ret = Eh96_5.IsValidSolution(base_state, soln);  \
+    } else if (n == 48 && k == 5) {                      \
+        ret = Eh48_5.IsValidSolution(base_state, soln);  \
     } else if (n == 210 && k == 9) {                    \
         ret = Eh210_9.IsValidSolution(base_state, soln);  \
     } else {                                             \

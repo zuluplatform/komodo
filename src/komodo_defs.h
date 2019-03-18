@@ -29,6 +29,8 @@
 #define KOMODO_SAPLING_ACTIVATION 1544832000 // Dec 15th, 2018
 #define KOMODO_SAPLING_DEADLINE 1550188800 // Feb 15th, 2019
 #define _COINBASE_MATURITY 100
+#define ASSETCHAINS_N 96
+#define ASSETCHAINS_K 5
 
 #define SETBIT(bits,bitoffset) (((uint8_t *)bits)[(bitoffset) >> 3] |= (1 << ((bitoffset) & 7)))
 #define GETBIT(bits,bitoffset) (((uint8_t *)bits)[(bitoffset) >> 3] & (1 << ((bitoffset) & 7)))
@@ -78,7 +80,7 @@ extern int32_t VERUS_MIN_STAKEAGE;
 extern std::string DONATION_PUBKEY;
 extern uint8_t ASSETCHAINS_PRIVATE;
 extern int32_t USE_EXTERNAL_PUBKEY;
-int tx_height( const uint256 &hash );
+//extern int tx_height( const uint256 &hash );
 extern char NOTARYADDRS[64][36];
 extern uint8_t NUM_NOTARIES;
 

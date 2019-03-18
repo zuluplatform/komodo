@@ -1667,11 +1667,24 @@ extern int64_t MAX_MONEY;
 
 int8_t equihash_params_possible(uint64_t n, uint64_t k)
 {
+    /* To add more of these you also need to edit:
+    * equihash.cpp very end of file with the tempate to point to the new param numbers 
+    * equihash.h
+    *  line 210/217 (declaration of equihash class)
+    * Add this object to the following functions: 
+    *  EhInitialiseState 
+    *  EhBasicSolve
+    *  EhOptimisedSolve
+    *  EhIsValidSolution
+    * Alternatively change ASSETCHAINS_N and ASSETCHAINS_K in komodo_defs.h for fast testing.
+    */
     if ( k == 9 && (n == 200 || n == 210) )
         return(0);
-    if ( k == 5 && (n == 150 || n == 144 || n == 96) )
+    if ( k == 5 && (n == 150 || n == 144 || n == 96 || n == 48) )
         return(0);
-    return(-1);    
+    if ( k == ASSETCHAINS_K && n == ASSETCHAINS_N)
+        return(0);
+    return(-1);
 }
 
 void komodo_args(char *argv0)
