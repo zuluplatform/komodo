@@ -1665,6 +1665,15 @@ uint64_t komodo_ac_block_subsidy(int nHeight)
 
 extern int64_t MAX_MONEY;
 
+int8_t equihash_params_possible(uint64_t n, uint64_t k)
+{
+    if ( k == 9 && (n == 200 || n == 210) )
+        return(0);
+    if ( k == 5 && (n == 150 || n == 144 || n == 96) )
+        return(0);
+    return(-1);    
+}
+
 void komodo_args(char *argv0)
 {
     extern const char *Notaries_elected1[][2];
@@ -1729,6 +1738,7 @@ void komodo_args(char *argv0)
     ASSETCHAINS_BLOCKTIME = GetArg("-ac_blocktime",60);
     ASSETCHAINS_PUBLIC = GetArg("-ac_public",0);
     ASSETCHAINS_PRIVATE = GetArg("-ac_private",0);
+    Split(GetArg("-ac_nk",""), ASSETCHAINS_NK, 0);
     if ( (KOMODO_REWIND= GetArg("-rewind",0)) != 0 )
     {
         printf("KOMODO_REWIND %d\n",KOMODO_REWIND);
@@ -1748,6 +1758,14 @@ void komodo_args(char *argv0)
                     printf("ASSETCHAINS_ALGO, algorithm set to %s\n", selectedAlgo.c_str());
                 break;
             }
+        }
+        if ( ASSETCHAINS_ALGO == ASSETCHAINS_EQUIHASH && ASSETCHAINS_NK[0] != 0 && ASSETCHAINS_NK[1] != 0 )
+        {
+            if ( equihash_params_possible(ASSETCHAINS_NK[0], ASSETCHAINS_NK[1]) == -1 ) 
+            {
+                printf("equihash values N.%li and K.%li are not currently available\n", ASSETCHAINS_NK[0], ASSETCHAINS_NK[1]);
+                exit(0);
+            } else printf("ASSETCHAINS_ALGO, algorithm set to equihash with N.%li and K.%li\n", ASSETCHAINS_NK[0], ASSETCHAINS_NK[1]);
         }
         if (i == ASSETCHAINS_NUMALGOS)
         {
