@@ -465,6 +465,7 @@ extern UniValue crosschainproof(const UniValue& params, bool fHelp);
 extern UniValue getNotarisationsForBlock(const UniValue& params, bool fHelp);
 extern UniValue scanNotarisationsDB(const UniValue& params, bool fHelp);
 extern UniValue getimports(const UniValue& params, bool fHelp);
+extern UniValue getwalletburntransactions(const UniValue& params, bool fHelp);
 extern UniValue migrate_converttoexport(const UniValue& params, bool fHelp);
 extern UniValue migrate_createburntransaction(const UniValue& params, bool fHelp);
 extern UniValue migrate_createimporttransaction(const UniValue& params, bool fHelp);
@@ -487,5 +488,6 @@ extern UniValue test_ac(const UniValue& params, bool fHelp);
 extern UniValue test_heirmarker(const UniValue& params, bool fHelp);
 extern UniValue test_burntx(const UniValue& params, bool fHelp);
 extern UniValue test_proof(const UniValue& params, bool fHelp);
+extern UniValue test_tokencreate(const UniValue& params, bool fHelp);
 
 #endif // BITCOIN_RPCSERVER_H
