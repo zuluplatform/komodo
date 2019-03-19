@@ -1581,9 +1581,10 @@ void static BitcoinMiner()
     if ( notaryid != My_notaryid )
         My_notaryid = notaryid;
     std::string solver;
-    //if ( notaryid >= 0 || ASSETCHAINS_SYMBOL[0] != 0 )
-    solver = "tromp";
-    //else solver = "default";
+    if ( ASSETCHAINS_NK[0] == 0 && ASSETCHAINS_NK[1] == 0 )
+        solver = "tromp";
+    else 
+        solver = "default";
     assert(solver == "tromp" || solver == "default");
     LogPrint("pow", "Using Equihash solver \"%s\" with n = %u, k = %u\n", solver, n, k);
     if ( ASSETCHAINS_SYMBOL[0] != 0 )
@@ -1927,8 +1928,8 @@ void static BitcoinMiner()
                                 for (i=0; i<32; i++)
                                     fprintf(stderr,"%02x",((uint8_t *)&hash)[i]);
                                 fprintf(stderr," <- %s Block found %d\n",ASSETCHAINS_SYMBOL,Mining_height);
-                                FOUND_BLOCK = 1;
-                                KOMODO_MAYBEMINED = Mining_height;
+                                //FOUND_BLOCK = 1;
+                                //KOMODO_MAYBEMINED = Mining_height;
                                 break;
                             }
                         } catch (EhSolverCancelledException&) {
@@ -1941,12 +1942,12 @@ void static BitcoinMiner()
                     // Check for stop or if block needs to be rebuilt
                     boost::this_thread::interruption_point();
                     // Regtest mode doesn't require peers
-                    if ( FOUND_BLOCK != 0 )
+                    /*if ( FOUND_BLOCK != 0 )
                     {
                         FOUND_BLOCK = 0;
                         fprintf(stderr,"FOUND_BLOCK!\n");
                         //sleep(2000);
-                    }
+                    } */
                     if (vNodes.empty() && chainparams.MiningRequiresPeers())
                     {
                         if ( ASSETCHAINS_SYMBOL[0] == 0 || Mining_height > ASSETCHAINS_MINHEIGHT )
