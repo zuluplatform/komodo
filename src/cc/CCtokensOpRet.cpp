@@ -44,6 +44,7 @@ CScript EncodeTokenCreateOpRet(uint8_t funcid, std::vector<uint8_t> origpubkey, 
     return(opret);
 }
 
+/*
 // opret 'i' for imported tokens
 CScript EncodeTokenImportOpRet(std::vector<uint8_t> origpubkey, std::string name, std::string description, uint256 srctokenid, std::vector<std::pair<uint8_t, vscript_t>> oprets)
 {
@@ -62,7 +63,7 @@ CScript EncodeTokenImportOpRet(std::vector<uint8_t> origpubkey, std::string name
     });
     return(opret);
 }
-
+*/
 
 
 CScript EncodeTokenOpRet(uint256 tokenid, std::vector<CPubKey> voutPubkeys, std::pair<uint8_t, vscript_t> opretWithId)
@@ -158,6 +159,7 @@ uint8_t DecodeTokenCreateOpRet(const CScript &scriptPubKey, std::vector<uint8_t>
     return (uint8_t)0;
 }
 
+/*
 // for imported tokens
 uint8_t DecodeTokenImportOpRet(const CScript &scriptPubKey, std::vector<uint8_t> &origpubkey, std::string &name, std::string &description, uint256 &srctokenid, std::vector<std::pair<uint8_t, vscript_t>>  &oprets)
 {
@@ -185,6 +187,7 @@ uint8_t DecodeTokenImportOpRet(const CScript &scriptPubKey, std::vector<uint8_t>
     LOGSTREAM((char *)"cctokens", CCLOG_INFO, stream << "DecodeTokenImportOpRet() incorrect token import opret" << std::endl);
     return (uint8_t)0;
 }
+*/
 
 // decodes token opret: 
 // for 't' returns all data from opret, vopretExtra contains other contract's data (currently only assets'). 
@@ -223,8 +226,8 @@ uint8_t DecodeTokenOpRet(const CScript scriptPubKey, uint8_t &evalCodeTokens, ui
         {
         case 'c':
             return DecodeTokenCreateOpRet(scriptPubKey, dummyPubkey, dummyName, dummyDescription, oprets);
-        case 'i':
-            return DecodeTokenImportOpRet(scriptPubKey, dummyPubkey, dummyName, dummyDescription, dummySrcTokenId, oprets);
+        //case 'i':
+        //    return DecodeTokenImportOpRet(scriptPubKey, dummyPubkey, dummyName, dummyDescription, dummySrcTokenId, oprets);
             //break;
         case 't':
            

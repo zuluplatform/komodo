@@ -350,6 +350,7 @@ static const CRPCCommand vRPCCommands[] =
     { "crosschain",         "getNotarisationsForBlock", &getNotarisationsForBlock, true },
     { "crosschain",         "scanNotarisationsDB",    &scanNotarisationsDB,    true },
     { "crosschain",         "getimports",             &getimports,             true },
+    { "crosschain",         "getwalletburntransactions",  &getwalletburntransactions,             true },
     { "crosschain",         "migrate_converttoexport", &migrate_converttoexport, true  },
     { "crosschain",         "migrate_createburntransaction", &migrate_createburntransaction, true },
     { "crosschain",         "migrate_createimporttransaction", &migrate_createimporttransaction, true  },
@@ -551,6 +552,7 @@ static const CRPCCommand vRPCCommands[] =
 	{ "hidden",             "test_heirmarker",        &test_heirmarker,    true }, 
 	{ "hidden",             "test_proof",        &test_proof,    true },
     { "hidden",             "test_burntx",            &test_burntx,    true },
+    { "hidden",             "test_tokencreate",            &test_tokencreate,    true },
 
 
 #ifdef ENABLE_WALLET

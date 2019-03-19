@@ -8136,3 +8136,35 @@ UniValue test_proof(const UniValue& params, bool fHelp)
 
 	return result;
 }
+
+
+UniValue test_tokencreate(const UniValue& params, bool fHelp)
+{
+    UniValue result(UniValue::VOBJ);
+    std::vector<uint8_t>proof;
+
+    if (fHelp || (params.size() != 4))
+        throw runtime_error("incorrect params\n");
+
+
+    std::string name = params[0].get_str();
+    int64_t txfee = 10000;
+    int64_t amount = (int64_t) (atof(params[1].get_str().c_str()) * COIN);
+    std::string desc = params[2].get_str();
+    vscript_t vtargetpubkey = ParseHex(params[3].get_str());
+    vscript_t nonfungibleData;
+
+    struct CCcontract_info *cp, C;
+    cp = CCinit(&C, EVAL_TOKENS);
+
+    CPubKey myPubkey = pubkey2pk(Mypubkey());
+    CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
+
+    int64_t normalInputs = AddNormalinputs(mtx, myPubkey, txfee*2+amount, 60);
+    if (normalInputs < (txfee*2 + amount))
+        throw runtime_error("not enough normals\n");
+
+    mtx.vout.push_back(MakeCC1vout(EVAL_TOKENS, txfee, GetUnspendable(cp, NULL)));           
+    mtx.vout.push_back(MakeTokensCC1vout(EVAL_TOKENS, amount, myPubkey));
+    return(FinalizeCCTx(0, cp, mtx, myPubkey, txfee, EncodeTokenCreateOpRet('c', vtargetpubkey, name, desc, nonfungibleData)));
+}

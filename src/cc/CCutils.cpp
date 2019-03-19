@@ -591,6 +591,57 @@ CPubKey check_signing_pubkey(CScript scriptSig)
 	return CPubKey();
 }
 
+
+// returns total of normal inputs signed with this pubkey
+int64_t TotalPubkeyNormalInputs(const CTransaction &tx, const CPubKey &pubkey)
+{
+    int64_t total = 0;
+    for (auto vin : tx.vin) {
+        CTransaction vintx;
+        uint256 hashBlock;
+        if (!IsCCInput(vin.scriptSig) && myGetTransaction(vin.prevout.hash, vintx, hashBlock)) {
+            typedef std::vector<unsigned char> valtype;
+            std::vector<valtype> vSolutions;
+            txnouttype whichType;
+
+            if (Solver(vintx.vout[vin.prevout.n].scriptPubKey, whichType, vSolutions)) {
+                switch (whichType) {
+                case TX_PUBKEY:
+                    if (pubkey == CPubKey(vSolutions[0]))   // is my input?
+                        total += vintx.vout[vin.prevout.n].nValue;
+                    break;
+                case TX_PUBKEYHASH:
+                    if (pubkey.GetID() == CKeyID(uint160(vSolutions[0])))    // is my input?
+                        total += vintx.vout[vin.prevout.n].nValue;
+                    break;
+                }
+            }
+        }
+    }
+    return total;
+}
+
+// returns total of CC inputs signed with this pubkey
+int64_t TotalPubkeyCCInputs(const CTransaction &tx, const CPubKey &pubkey)
+{
+    int64_t total = 0;
+    for (auto vin : tx.vin) {
+        if (IsCCInput(vin.scriptSig)) {
+            CPubKey vinPubkey = check_signing_pubkey(vin.scriptSig);
+            if (vinPubkey.IsValid()) {
+                if (vinPubkey == pubkey) {
+                    CTransaction vintx;
+                    uint256 hashBlock;
+                    if (myGetTransaction(vin.prevout.hash, vintx, hashBlock)) {
+                        total += vintx.vout[vin.prevout.n].nValue;
+                    }
+                }
+            }
+        }
+    }
+    return total;
+}
+
 bool ProcessCC(struct CCcontract_info *cp,Eval* eval, std::vector<uint8_t> paramsNull,const CTransaction &ctx, unsigned int nIn)
 {
     CTransaction createTx; uint256 assetid,assetid2,hashBlock; uint8_t funcid; int32_t height,i,n,from_mempool = 0; int64_t amount; std::vector<uint8_t> origpubkey;

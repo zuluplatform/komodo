@@ -256,16 +256,16 @@ void CompleteImportTransaction(CTransaction &importTx, int32_t offset)
 {
     ImportProof proof; CTransaction burnTx; std::vector<CTxOut> payouts; std::vector<uint8_t> rawproof;
     if (!UnmarshalImportTx(importTx, proof, burnTx, payouts))
-        throw std::runtime_error("Couldn't parse importTx");
+        throw std::runtime_error("Couldn't unmarshal importTx");
 
     std::string targetSymbol;
     uint32_t targetCCid;
     uint256 payoutsHash;
     if (!UnmarshalBurnTx(burnTx, targetSymbol, &targetCCid, payoutsHash, rawproof))
-        throw std::runtime_error("Couldn't parse burnTx");
+        throw std::runtime_error("Couldn't unmarshal burnTx");
 
     TxProof merkleBranch;
-    if( !proof.IsMerkleBranch(merkleBranch))
+    if( !proof.IsMerkleBranch(merkleBranch) )
         throw std::runtime_error("Incorrect import tx proof");
     TxProof newMerkleBranch = GetCrossChainProof(burnTx.GetHash(), targetSymbol.data(), targetCCid, merkleBranch, offset);
     ImportProof newProof(newMerkleBranch);
@@ -376,27 +376,29 @@ bool CheckNotariesApproval(uint256 burntxid, const std::vector<uint256> & notary
                             
                             if (komodo_notaries(notaries_pubkeys, block.GetHeight(), block.GetBlockTime()) >= 0) {
                                 // check it is a notary who signed approved tx:
-                                for (int i = 0; i < sizeof(notaries_pubkeys) / sizeof(notaries_pubkeys[0]); i++) {
+                                int i;
+                                for (i = 0; i < sizeof(notaries_pubkeys) / sizeof(notaries_pubkeys[0]); i++) {
                                     std::vector<uint8_t> vnotarypubkey(notaries_pubkeys[i], notaries_pubkeys[i] + 33);
-
 #ifdef TESTMODE
+                                    char test_notary_pubkey_hex[] = "029fa302968bbae81f41983d2ec20445557b889d31227caec5d910d19b7510ef86";
                                     uint8_t test_notary_pubkey33[33];
-                                    decode_hex(test_notary_pubkey33, 33, "029fa302968bbae81f41983d2ec20445557b889d31227caec5d910d19b7510ef86");
+                                    decode_hex(test_notary_pubkey33, 33, test_notary_pubkey_hex);
 #endif
                                     if (CheckVinPubKey(notarytx, 0, notaries_pubkeys[i])   // is signed by a notary?
                                         && std::find(alreadySigned.begin(), alreadySigned.end(), vnotarypubkey) == alreadySigned.end()   // check if notary not re-used
 #ifdef TESTMODE                                        
                                         || CheckVinPubKey(notarytx, 0, test_notary_pubkey33)  // test
 #endif
-                                    )   {
+                                    )   
+                                    {
                                         alreadySigned.push_back(vnotarypubkey);
                                         count++;
                                         LOGSTREAM("importcoin", CCLOG_DEBUG1, stream << "CheckNotariesApproval() notary approval checked, count=" << count << std::endl);
                                         break;
                                     }
-                                    if (i == sizeof(notaries_pubkeys) / sizeof(notaries_pubkeys[0]))
-                                        LOGSTREAM("importcoin", CCLOG_INFO, stream << "CheckNotariesApproval() txproof not signed by a notary" << std::endl);
                                 }
+                                if (i == sizeof(notaries_pubkeys) / sizeof(notaries_pubkeys[0]))
+                                    LOGSTREAM("importcoin", CCLOG_DEBUG1, stream << "CheckNotariesApproval() txproof not signed by a notary or reused" << std::endl);
                             }
                             else {
                                 LOGSTREAM("importcoin", CCLOG_INFO, stream << "CheckNotariesApproval() cannot get current notaries pubkeys" << std::endl);
