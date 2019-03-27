@@ -13,18 +13,25 @@
  *                                                                            *
  ******************************************************************************/
 
+// requires CHAINNAME and GAMEMAIN() to be #defined
 
 #include <stdio.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <memory.h>
 #include <string.h>
 #include <unistd.h>
 #include <curl/curl.h>
 #include <curl/easy.h>
 
-char USERPASS[8192]; uint16_t ROGUE_PORT;
-extern char Gametxidstr[67];
+extern struct games_state globalR;
+void *gamesiterate(struct games_state *rs);
+
+char USERPASS[8192]; uint16_t GAMES_PORT;
+char Gametxidstr[67];
+char *clonestr(char *str);
+
+#define MAXSTR 1024
+char whoami[MAXSTR];
 
 #define SMALLVAL 0.000000000000001
 #define SATOSHIDEN ((uint64_t)100000000L)
@@ -42,35 +49,33 @@ typedef union _bits256 bits256;
 #ifdef _MSC_VER
 int gettimeofday(struct timeval * tp, struct timezone * tzp)
 {
-	// Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's
-	static const uint64_t EPOCH = ((uint64_t)116444736000000000ULL);
-
-	SYSTEMTIME  system_time;
-	FILETIME    file_time;
-	uint64_t    time;
-
-	GetSystemTime(&system_time);
-	SystemTimeToFileTime(&system_time, &file_time);
-	time = ((uint64_t)file_time.dwLowDateTime);
-	time += ((uint64_t)file_time.dwHighDateTime) << 32;
-
-	tp->tv_sec = (long)((time - EPOCH) / 10000000L);
-	tp->tv_usec = (long)(system_time.wMilliseconds * 1000);
-	return 0;
+    // Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's
+    static const uint64_t EPOCH = ((uint64_t)116444736000000000ULL);
+    
+    SYSTEMTIME  system_time;
+    FILETIME    file_time;
+    uint64_t    time;
+    
+    GetSystemTime(&system_time);
+    SystemTimeToFileTime(&system_time, &file_time);
+    time = ((uint64_t)file_time.dwLowDateTime);
+    time += ((uint64_t)file_time.dwHighDateTime) << 32;
+    
+    tp->tv_sec = (long)((time - EPOCH) / 10000000L);
+    tp->tv_usec = (long)(system_time.wMilliseconds * 1000);
+    return 0;
 }
 #endif // _MSC_VER
 #endif
 
-
-
 double OS_milliseconds()
 {
     struct timeval tv; double millis;
-    #ifdef __MINGW32__
+#ifdef __MINGW32__
     mingw_gettimeofday(&tv,NULL);
-    #else
+#else
     gettimeofday(&tv,NULL);
-    #endif
+#endif
     millis = ((double)tv.tv_sec * 1000. + (double)tv.tv_usec / 1000.);
     //printf("tv_sec.%ld usec.%d %f\n",tv.tv_sec,tv.tv_usec,millis);
     return(millis);
@@ -197,22 +202,6 @@ long _stripwhite(char *buf,int accept)
     return(j);
 }
 
-char *clonestr(char *str)
-{
-    char *clone;
-    if ( str == 0 || str[0] == 0 )
-    {
-        printf("warning cloning nullstr.%p\n",str);
-#ifdef __APPLE__
-        while ( 1 ) sleep(1);
-#endif
-        str = (char *)"<nullstr>";
-    }
-    clone = (char *)malloc(strlen(str)+16);
-    strcpy(clone,str);
-    return(clone);
-}
-
 char *parse_conf_line(char *line,char *field)
 {
     line += strlen(field);
@@ -253,15 +242,16 @@ int32_t safecopy(char *dest,char *src,long len)
 
 #define true 1
 #define false 0
-#ifdef STANDALONE
-#include "../komodo/src/komodo_cJSON.c"
-#else
-#include "../../komodo_cJSON.c"
-#endif
+//#ifdef STANDALONE
+//#include "../komodo/src/komodo_cJSON.c"
+//#else
+#include "../komodo_cJSON.c"
+//#endif
 
-int32_t rogue_replay(uint64_t seed,int32_t sleeptime);
-char *rogue_keystrokesload(int32_t *numkeysp,uint64_t seed,int32_t counter);
-int rogue(int argc, char **argv, char **envp);
+int32_t games_replay(uint64_t seed,int32_t sleeptime);
+gamesevent *games_keystrokesload(int32_t *numkeysp,uint64_t seed,int32_t counter);
+
+int GAMEMAIN(int argc, char **argv);
 
 void *OS_loadfile(char *fname,uint8_t **bufp,long *lenp,long *allocsizep)
 {
@@ -657,43 +647,6 @@ uint16_t _komodo_userpass(char *username, char *password, FILE *fp)
     return(port);
 }
 
-/*void komodo_statefname(char *fname,char *symbol,char *str)
-{
-    int32_t n,len;
-    sprintf(fname,"%s",getDataDir());
-    if ( (n= (int32_t)strlen(ASSETCHAINS_SYMBOL)) != 0 )
-    {
-        len = (int32_t)strlen(fname);
-        if ( strcmp(ASSETCHAINS_SYMBOL,&fname[len - n]) == 0 )
-            fname[len - n] = 0;
-        else
-        {
-            printf("unexpected fname.(%s) vs %s [%s] n.%d len.%d (%s)\n",fname,symbol,ASSETCHAINS_SYMBOL,n,len,&fname[len - n]);
-            return;
-        }
-    }
-    else
-    {
-#ifdef _WIN32
-        strcat(fname,"\\");
-#else
-        strcat(fname,"/");
-#endif
-    }
-    if ( symbol != 0 && symbol[0] != 0 && strcmp("KMD",symbol) != 0 )
-    {
-        strcat(fname,symbol);
-        //printf("statefname.(%s) -> (%s)\n",symbol,fname);
-#ifdef _WIN32
-        strcat(fname,"\\");
-#else
-        strcat(fname,"/");
-#endif
-    }
-    strcat(fname,str);
-    //printf("test.(%s) -> [%s] statename.(%s) %s\n",test,ASSETCHAINS_SYMBOL,symbol,fname);
-}*/
-
 uint16_t komodo_userpass(char *userpass,char *symbol)
 {
     FILE *fp; uint16_t port = 0; char fname[512],username[512],password[512],confname[KOMODO_ASSETCHAIN_MAXLEN];
@@ -738,20 +691,18 @@ char *komodo_issuemethod(char *userpass,char *method,char *params,uint16_t port)
     return(retstr2);
 }
 
-#include "rogue.h"
-
-int32_t rogue_sendrawtransaction(char *rawtx)
+int32_t games_sendrawtransaction(char *rawtx)
 {
     char *params,*retstr,*hexstr; cJSON *retjson,*resobj; int32_t retval = -1;
     params = (char *)malloc(strlen(rawtx) + 16);
     sprintf(params,"[\"%s\"]",rawtx);
-    if ( (retstr= komodo_issuemethod(USERPASS,"sendrawtransaction",params,ROGUE_PORT)) != 0 )
+    if ( (retstr= komodo_issuemethod(USERPASS,(char *)"sendrawtransaction",params,GAMES_PORT)) != 0 )
     {
         if ( 0 ) // causes 4th level crash
         {
             static FILE *fp;
             if ( fp == 0 )
-                fp = fopen("rogue.sendlog","wb");
+                fp = fopen("games.sendlog","wb");
             if ( fp != 0 )
             {
                 fprintf(fp,"%s\n",retstr);
@@ -760,45 +711,44 @@ int32_t rogue_sendrawtransaction(char *rawtx)
         }
         if ( (retjson= cJSON_Parse(retstr)) != 0 )
         {
-            if ( (resobj= jobj(retjson,"result")) != 0 )
+            if ( (resobj= jobj(retjson,(char *)"result")) != 0 )
             {
                 if ( (hexstr= jstr(resobj,0)) != 0 && is_hexstr(hexstr,64) == 64 )
                     retval = 0;
             }
             free_json(retjson);
         }
-
-		/* log sendrawtx result in file */
-		
-		/*
-		FILE *debug_file;
-		debug_file = fopen("tx_debug.log", "a");
-		fprintf(debug_file, "%s\n", retstr);
-		fflush(debug_file);
-		fclose(debug_file);
-		*/
-
+        
+        /* log sendrawtx result in file */
+        
+        /*
+         FILE *debug_file;
+         debug_file = fopen("tx_debug.log", "a");
+         fprintf(debug_file, "%s\n", retstr);
+         fflush(debug_file);
+         fclose(debug_file);
+         */
+        
         free(retstr);
     }
     free(params);
     return(retval);
 }
 
-int32_t rogue_progress(struct rogue_state *rs,int32_t waitflag,uint64_t seed,char *keystrokes,int32_t num)
+int32_t games_progress(struct games_state *rs,int32_t waitflag,uint64_t seed,gamesevent *keystrokes,int32_t num)
 {
-    char cmd[16384],hexstr[16384],params[32768],*retstr,*errstr,*rawtx,*pastkeys,*pastcmp,*keys; int32_t i,len,numpastkeys,retflag = -1; cJSON *retjson,*resobj;
-    //fprintf(stderr,"rogue_progress num.%d\n",num);
+    char cmd[16384],hexstr[16384],params[32768],*retstr,*errstr,*rawtx; int32_t i,len,retflag = -1; cJSON *retjson,*resobj;
     if ( rs->guiflag != 0 && Gametxidstr[0] != 0 )
     {
         if ( rs->keystrokeshex != 0 )
         {
-            if ( rogue_sendrawtransaction(rs->keystrokeshex) == 0 )
+            if ( games_sendrawtransaction(rs->keystrokeshex) == 0 )
             {
                 if ( waitflag == 0 )
                     return(0);
                 else if ( 0 )
                 {
-                    while ( rogue_sendrawtransaction(rs->keystrokeshex) == 0 )
+                    while ( games_sendrawtransaction(rs->keystrokeshex) == 0 )
                     {
                         //fprintf(stderr,"pre-rebroadcast\n");
                         sleep(10);
@@ -807,92 +757,215 @@ int32_t rogue_progress(struct rogue_state *rs,int32_t waitflag,uint64_t seed,cha
             }
             free(rs->keystrokeshex), rs->keystrokeshex = 0;
         }
-        if ( 0 && (pastkeys= rogue_keystrokesload(&numpastkeys,seed,1)) != 0 )
-        {
-            sprintf(params,"[\"extract\",\"17\",\"[%%22%s%%22]\"]",Gametxidstr);
-            if ( (retstr= komodo_issuemethod(USERPASS,"cclib",params,ROGUE_PORT)) != 0 )
-            {
-                if ( (retjson= cJSON_Parse(retstr)) != 0 )
-                {
-                    if ( (resobj= jobj(retjson,"result")) != 0 && (keys= jstr(resobj,"keystrokes")) != 0 )
-                    {
-                        len = strlen(keys) / 2;
-                        pastcmp = (char *)malloc(len + 1);
-                        decode_hex(pastcmp,len,keys);
-                        fprintf(stderr,"keystrokes.(%s) vs pastkeys\n",keys);
-                        for (i=0; i<numpastkeys; i++)
-                            fprintf(stderr,"%02x",pastkeys[i]);
-                        fprintf(stderr,"\n");
-                        if ( len != numpastkeys || memcmp(pastcmp,pastkeys,len) != 0 )
-                        {
-                            fprintf(stderr,"pastcmp[%d] != pastkeys[%d]?\n",len,numpastkeys);
-                        }
-                        free(pastcmp);
-                    } else fprintf(stderr,"no keystrokes in (%s)\n",retstr);
-                    free_json(retjson);
-                } else fprintf(stderr,"error parsing.(%s)\n",retstr);
-                fprintf(stderr,"extracted.(%s)\n",retstr);
-                free(retstr);
-            } else fprintf(stderr,"error extracting game\n");
-            free(pastkeys);
-        } // else fprintf(stderr,"no pastkeys\n");
-
+        memset(hexstr,0,sizeof(hexstr));
         for (i=0; i<num; i++)
-            sprintf(&hexstr[i<<1],"%02x",keystrokes[i]&0xff);
-        hexstr[i<<1] = 0;
-        if ( 0 )
         {
-            sprintf(cmd,"./komodo-cli -ac_name=ROGUE cclib keystrokes 17 \\\"[%%22%s%%22,%%22%s%%22]\\\" >> keystrokes.log",Gametxidstr,hexstr);
-            if ( system(cmd) != 0 )
-                fprintf(stderr,"error issuing (%s)\n",cmd);
+            if ( sizeof(gamesevent) ==  1 )
+                sprintf(&hexstr[i<<1],"%02x",keystrokes[i]&0xff);
+            else if ( sizeof(gamesevent) ==  2 )
+                sprintf(&hexstr[i<<2],"%04x",keystrokes[i]&0xffff);
+            else if ( sizeof(gamesevent) ==  4 )
+                sprintf(&hexstr[i<<3],"%08x",keystrokes[i]&0xffffffff);
+            else if ( sizeof(gamesevent) ==  8 )
+                sprintf(&hexstr[i<<4],"%016llx",(long long)(keystrokes[i]&0xffffffffffffffffLL));
         }
-        else
+        static FILE *fp;
+        if ( fp == 0 )
+            fp = fopen("keystrokes.log","a");
+        sprintf(params,"[\"keystrokes\",\"17\",\"[%%22%s%%22,%%22%s%%22]\"]",Gametxidstr,hexstr);
+        if ( (retstr= komodo_issuemethod(USERPASS,(char *)"cclib",params,GAMES_PORT)) != 0 )
         {
-            static FILE *fp;
-            if ( fp == 0 )
-                fp = fopen("keystrokes.log","a");
-            sprintf(params,"[\"keystrokes\",\"17\",\"[%%22%s%%22,%%22%s%%22]\"]",Gametxidstr,hexstr);
-            if ( (retstr= komodo_issuemethod(USERPASS,"cclib",params,ROGUE_PORT)) != 0 )
+            if ( fp != 0 )
             {
-                if ( fp != 0 )
+                fprintf(fp,"%s\n",params);
+                fprintf(fp,"%s\n",retstr);
+                fflush(fp);
+            }
+            if ( (retjson= cJSON_Parse(retstr)) != 0 )
+            {
+                if ( (resobj= jobj(retjson,(char *)"result")) != 0 && (rawtx= jstr(resobj,(char *)"hex")) != 0 )
                 {
-                    fprintf(fp,"%s\n",params);
-                    fprintf(fp,"%s\n",retstr);
-                    fflush(fp);
-                }
-                if ( (retjson= cJSON_Parse(retstr)) != 0 )
-                {
-                    if ( (resobj= jobj(retjson,"result")) != 0 && (rawtx= jstr(resobj,"hex")) != 0 )
+                    if ( rs->keystrokeshex != 0 )
+                        free(rs->keystrokeshex);
+                    if ( (errstr= jstr(resobj,(char *)"error")) == 0 )
                     {
-                        if ( rs->keystrokeshex != 0 )
-                            free(rs->keystrokeshex);
-                        if ( (errstr= jstr(resobj,"error")) == 0 )
-                        {
-                            rs->keystrokeshex = (char *)malloc(strlen(rawtx)+1);
-                            strcpy(rs->keystrokeshex,rawtx);
-                            retflag = 1;
-                        } else fprintf(stderr,"error sending keystrokes tx\n"), sleep(1);
-//fprintf(stderr,"set keystrokestx <- %s\n",rs->keystrokeshex);
-                    }
-                    free_json(retjson);
+                        rs->keystrokeshex = (char *)malloc(strlen(rawtx)+1);
+                        strcpy(rs->keystrokeshex,rawtx);
+                        retflag = 1;
+                    } else fprintf(stderr,"error sending keystrokes tx\n"), sleep(1);
+                    //fprintf(stderr,"set keystrokestx <- %s\n",rs->keystrokeshex);
                 }
-                free(retstr);
+                free_json(retjson);
             }
-            if ( 0 && waitflag != 0 && rs->keystrokeshex != 0 )
-            {
-                while ( rogue_sendrawtransaction(rs->keystrokeshex) == 0 )
-                {
-                    //fprintf(stderr,"post-rebroadcast\n");
-                    sleep(3);
-                }
-                free(rs->keystrokeshex), rs->keystrokeshex = 0;
-            }
+            free(retstr);
         }
     }
     return(retflag);
 }
 
-int32_t rogue_setplayerdata(struct rogue_state *rs,char *gametxidstr)
+int32_t gamesfname(char *fname,uint64_t seed,int32_t counter)
+{
+    sprintf(fname,"%s.%llu.%d",GAMENAME,(long long)seed,counter);
+    return(0);
+}
+
+int32_t flushkeystrokes_local(struct games_state *rs,int32_t waitflag)
+{
+#ifdef STANDALONE
+    char fname[1024]; FILE *fp; int32_t i,retflag = -1;
+    rs->counter++;
+    gamesfname(fname,rs->origseed,rs->counter);
+    if ( (fp= fopen(fname,"wb")) != 0 )
+    {
+        if ( fwrite(rs->buffered,sizeof(*rs->buffered),rs->num,fp) == rs->num )
+        {
+            rs->num = 0;
+            retflag = 0;
+            fclose(fp);
+            gamesfname(fname,rs->origseed,rs->counter+1);
+            if ( (fp= fopen(fname,"wb")) != 0 ) // truncate next file
+                fclose(fp);
+            //fprintf(stderr,"savefile <- %s retflag.%d\n",fname,retflag);
+            //}
+        } else fprintf(stderr,"error writing (%s)\n",fname);
+    } else fprintf(stderr,"error creating (%s)\n",fname);
+    return(retflag);
+#else
+    return(0);
+#endif
+}
+
+#ifndef STANDALONE
+// stubs for inside daemon
+
+int32_t games_progress(struct games_state *rs,int32_t waitflag,uint64_t seed,char *keystrokes,int32_t num)
+{
+    return(0);
+}
+
+int32_t games_setplayerdata(struct games_state *rs,char *gametxidstr)
+{
+    return(-1);
+}
+#endif
+
+int32_t flushkeystrokes(struct games_state *rs,int32_t waitflag)
+{
+    if ( rs->num > 0 )
+    {
+        if ( games_progress(rs,waitflag,rs->origseed,rs->buffered,rs->num) > 0 )
+        {
+            flushkeystrokes_local(rs,waitflag);
+            memset(rs->buffered,0,sizeof(rs->buffered));
+        }
+    }
+    return(0);
+}
+
+void gamesbailout(struct games_state *rs)
+{
+    flushkeystrokes(rs,1);
+}
+
+#ifdef _WIN32
+#ifdef _MSC_VER
+#define sleep(x) Sleep(1000*(x))
+#endif
+#endif
+
+long get_filesize(FILE *fp)
+{
+    long fsize,fpos = ftell(fp);
+    fseek(fp,0,SEEK_END);
+    fsize = ftell(fp);
+    fseek(fp,fpos,SEEK_SET);
+    return(fsize);
+}
+
+gamesevent *games_keystrokesload(int32_t *numkeysp,uint64_t seed,int32_t counter)
+{
+    char fname[1024]; gamesevent *keystrokes = 0; FILE *fp; long fsize; int32_t i,num = 0;
+    *numkeysp = 0;
+    while ( 1 )
+    {
+        gamesfname(fname,seed,counter);
+        //printf("check (%s)\n",fname);
+        if ( (fp= fopen(fname,"rb")) == 0 )
+            break;
+        if ( (fsize= get_filesize(fp)) <= 0 )
+        {
+            fclose(fp);
+            //printf("fsize.%ld\n",fsize);
+            break;
+        }
+        if ( (keystrokes= (gamesevent *)realloc(keystrokes,sizeof(*keystrokes)*num+fsize)) == 0 )
+        {
+            fprintf(stderr,"error reallocating keystrokes\n");
+            fclose(fp);
+            return(0);
+        }
+        if ( fread(&keystrokes[num],1,fsize,fp) != fsize )
+        {
+            fprintf(stderr,"error reading keystrokes from (%s)\n",fname);
+            fclose(fp);
+            free(keystrokes);
+            return(0);
+        }
+        fclose(fp);
+        num += (int32_t)(fsize / sizeof(gamesevent));
+        //for (i=0; i<num; i++)
+        //    keystrokes[i] = games_revendian(keystrokes[i]);
+        counter++;
+        //fprintf(stderr,"loaded %ld from (%s) total %d\n",fsize,fname,num);
+        break;
+    }
+    *numkeysp = num;
+    return(keystrokes);
+}
+
+void games_exit()
+{
+    uint32_t counter;
+    //resetltchars();
+    if ( globalR.guiflag != 0 || globalR.sleeptime != 0 )
+        exit(0);
+    else if ( counter++ < 10 )
+    {
+        fprintf(stderr,"would have exit sleeptime.%d\n",globalR.sleeptime);
+        globalR.replaydone = 1;
+    }
+}
+
+int32_t games_replay(uint64_t seed,int32_t sleeptime)
+{
+    FILE *fp; char fname[1024]; gamesevent *keystrokes = 0; long fsize; int32_t i,num=0,counter = 0; struct games_state *rs; struct games_player P,*player = 0;
+    if ( seed == 0 )
+        seed = 777;
+    keystrokes = games_keystrokesload(&num,seed,counter);
+    //fprintf(stderr,"keystrokes.%p num.%d\n",keystrokes,num);
+    if ( num > 0 )
+    {
+        sprintf(fname,"%s.%llu.player",GAMENAME,(long long)seed);
+        if ( (fp=fopen(fname,"rb")) != 0 )
+        {
+            if ( fread(&P,1,sizeof(P),fp) > 0 )
+            {
+                //printf("max size player\n");
+                player = &P;
+            }
+            fclose(fp);
+        }
+        games_replay2(0,seed,keystrokes,num,player,sleeptime);
+        mvaddstr(LINES - 2, 0, (char *)"replay completed");
+        endwin();
+        games_exit();
+    }
+    if ( keystrokes != 0 )
+        free(keystrokes);
+    return(num);
+}
+
+int32_t games_setplayerdata(struct games_state *rs,char *gametxidstr)
 {
     char cmd[32768]; int32_t i,n,retval=-1; char params[1024],*filestr=0,*pname,*statusstr,*datastr,fname[128]; long allocsize; cJSON *retjson,*array,*item,*resultjson;
     if ( rs->guiflag == 0 )
@@ -902,7 +975,7 @@ int32_t rogue_setplayerdata(struct rogue_state *rs,char *gametxidstr)
     if ( 0 )
     {
         sprintf(fname,"%s.gameinfo",gametxidstr);
-        sprintf(cmd,"./komodo-cli -ac_name=ROGUE cclib gameinfo 17 \\\"[%%22%s%%22]\\\" > %s",gametxidstr,fname);
+        sprintf(cmd,"./komodo-cli -ac_name=%s cclib gameinfo 17 \\\"[%%22%s%%22]\\\" > %s",ASSETCHAINS_SYMBOL,gametxidstr,fname);
         if ( system(cmd) != 0 )
             fprintf(stderr,"error issuing (%s)\n",cmd);
         else filestr = (char *)OS_fileptr(&allocsize,fname);
@@ -910,26 +983,26 @@ int32_t rogue_setplayerdata(struct rogue_state *rs,char *gametxidstr)
     else
     {
         sprintf(params,"[\"gameinfo\",\"17\",\"[%%22%s%%22]\"]",gametxidstr);
-        filestr = komodo_issuemethod(USERPASS,"cclib",params,ROGUE_PORT);
+        filestr = komodo_issuemethod(USERPASS,(char *)"cclib",params,GAMES_PORT);
     }
     if ( filestr != 0 )
     {
-        if ( (retjson= cJSON_Parse(filestr)) != 0 && (resultjson= jobj(retjson,"result")) != 0 )
+        if ( (retjson= cJSON_Parse(filestr)) != 0 && (resultjson= jobj(retjson,(char *)"result")) != 0 )
         {
             //fprintf(stderr,"gameinfo.(%s)\n",jprint(resultjson,0));
-            if ( (array= jarray(&n,resultjson,"players")) != 0 )
+            if ( (array= jarray(&n,resultjson,(char *)"players")) != 0 )
             {
                 for (i=0; i<n; i++)
                 {
                     item = jitem(array,i);
-                    if ( is_cJSON_True(jobj(item,"ismine")) != 0 && (statusstr= jstr(item,"status")) != 0 )
+                    if ( is_cJSON_True(jobj(item,(char *)"ismine")) != 0 && (statusstr= jstr(item,(char *)"status")) != 0 )
                     {
-                        if ( strcmp(statusstr,"registered") == 0 )
+                        if ( strcmp(statusstr,(char *)"registered") == 0 )
                         {
                             retval = 0;
-                            if ( (item= jobj(item,"player")) != 0 && (datastr= jstr(item,"data")) != 0 )
+                            if ( (item= jobj(item,(char *)"player")) != 0 && (datastr= jstr(item,(char *)"data")) != 0 )
                             {
-                                if ( (pname= jstr(item,"pname")) != 0 && strlen(pname) < MAXSTR-1 )
+                                if ( (pname= jstr(item,(char *)"pname")) != 0 && strlen(pname) < MAXSTR-1 )
                                     strcpy(whoami,pname);
                                 decode_hex((uint8_t *)&rs->P,(int32_t)strlen(datastr)/2,datastr);
                                 fprintf(stderr,"set pname[%s] %s\n",pname==0?"":pname,jprint(item,0));
@@ -949,24 +1022,24 @@ int32_t rogue_setplayerdata(struct rogue_state *rs,char *gametxidstr)
 #ifdef _WIN32
 #ifdef _MSC_VER
 __inline int msver(void) {
-	switch (_MSC_VER) {
-	case 1500: return 2008;
-	case 1600: return 2010;
-	case 1700: return 2012;
-	case 1800: return 2013;
-	case 1900: return 2015;
-	//case 1910: return 2017;
-	default: return (_MSC_VER / 100);
-	}
+    switch (_MSC_VER) {
+        case 1500: return 2008;
+        case 1600: return 2010;
+        case 1700: return 2012;
+        case 1800: return 2013;
+        case 1900: return 2015;
+            //case 1910: return 2017;
+        default: return (_MSC_VER / 100);
+    }
 }
 
 static inline bool is_x64(void) {
 #if defined(__x86_64__) || defined(_WIN64) || defined(__aarch64__)
-	return 1;
+    return 1;
 #elif defined(__amd64__) || defined(__amd64) || defined(_M_X64) || defined(_M_IA64)
-	return 1;
+    return 1;
 #else
-	return 0;
+    return 0;
 #endif
 }
 
@@ -974,18 +1047,17 @@ static inline bool is_x64(void) {
 #endif // _WIN32
 #endif // _MSC_VER
 
-int main(int argc, char **argv, char **envp)
+int main(int argc, char **argv)
 {
     uint64_t seed; FILE *fp = 0; int32_t i,j,c; char userpass[8192];
-
-	#ifdef _WIN32
-	#ifdef _MSC_VER
-	printf("*** rogue for Windows [ Build %s ] ***\n", BUILD_DATE);
-	const char* arch = is_x64() ? "64-bits" : "32-bits";
-	printf("    Built with VC++ %d (%ld) %s\n\n", msver(), _MSC_FULL_VER, arch);
-	#endif
-	#endif
-
+#ifdef _WIN32
+#ifdef _MSC_VER
+    printf("*** games for Windows [ Build %s ] ***\n", BUILD_DATE);
+    const char* arch = is_x64() ? "64-bits" : "32-bits";
+    printf("    Built with VC++ %d (%ld) %s\n\n", msver(), _MSC_FULL_VER, arch);
+#endif
+#endif
+    
     for (i=j=0; argv[0][i]!=0&&j<sizeof(ASSETCHAINS_SYMBOL); i++)
     {
         c = argv[0][i];
@@ -997,46 +1069,51 @@ int main(int argc, char **argv, char **envp)
         ASSETCHAINS_SYMBOL[j++] = toupper(c);
     }
     ASSETCHAINS_SYMBOL[j++] = 0;
-	
-	#ifdef _WIN32
-	#ifdef _MSC_VER
-	if (strncmp(ASSETCHAINS_SYMBOL, "ROGUE.EXE", sizeof(ASSETCHAINS_SYMBOL)) == 0 || strncmp(ASSETCHAINS_SYMBOL, "ROGUE54.EXE", sizeof(ASSETCHAINS_SYMBOL)) == 0) {
-		strcpy(ASSETCHAINS_SYMBOL, "ROGUE"); // accept ROGUE.conf, instead of ROGUE.EXE.conf or ROGUE54.EXE.conf if build with MSVC
-	}
-	#endif
-	#endif
-
-    ROGUE_PORT = komodo_userpass(userpass,ASSETCHAINS_SYMBOL);
+    
+#ifdef _WIN32
+#ifdef _MSC_VER
+    char cmpa[64],cmpb[64];
+    sprintf(cmpa,"%s.EXE",CHAINNAME);
+    sprintf(cmpb,"%s54.EXE",CHAINNAME);
+    if (strncmp(ASSETCHAINS_SYMBOL, cmpa, sizeof(ASSETCHAINS_SYMBOL)) == 0 || strncmp(ASSETCHAINS_SYMBOL, cmpb, sizeof(ASSETCHAINS_SYMBOL)) == 0) {
+        strcpy(ASSETCHAINS_SYMBOL, CHAINNAME);
+    }
+#endif
+#endif
+    strcpy(ASSETCHAINS_SYMBOL,CHAINNAME);
+    
+    GAMES_PORT = komodo_userpass(userpass,ASSETCHAINS_SYMBOL);
     if ( IPADDRESS[0] == 0 )
         strcpy(IPADDRESS,"127.0.0.1");
-    printf("ASSETCHAINS_SYMBOL.(%s) port.%u (%s) IPADDRESS.%s \n",ASSETCHAINS_SYMBOL,ROGUE_PORT,USERPASS,IPADDRESS); sleep(1);
+    printf("ASSETCHAINS_SYMBOL.(%s) port.%u (%s) IPADDRESS.%s \n",ASSETCHAINS_SYMBOL,GAMES_PORT,USERPASS,IPADDRESS); sleep(1);
     if ( argc == 2 && (fp=fopen(argv[1],"rb")) == 0 )
     {
         
-		#ifdef _WIN32
-			#ifdef _MSC_VER
-			seed = _strtoui64(argv[1], NULL, 10);
-			fprintf(stderr, "replay seed.str(%s) seed.uint64_t(%I64u)", argv[1], seed);
-			#else
-			fprintf(stderr, "replay seed.str(%s) seed.uint64_t(%llu)", argv[1], (long long)seed);
-			seed = atol(argv[1]); // windows, but not MSVC
-			#endif // _MSC_VER
-		#else
-		seed = atol(argv[1]); // non-windows
-		#endif // _WIN32
-
-        //fprintf(stderr,"replay %llu\n",(long long)seed);
-        return(rogue_replay(seed,10));
+#ifdef _WIN32
+#ifdef _MSC_VER
+        seed = _strtoui64(argv[1], NULL, 10);
+        fprintf(stderr, "replay seed.str(%s) seed.uint64_t(%I64u)", argv[1], seed);
+#else
+        fprintf(stderr, "replay seed.str(%s) seed.uint64_t(%llu)", argv[1], (long long)seed);
+        seed = atol(argv[1]); // windows, but not MSVC
+#endif // _MSC_VER
+#else
+        seed = atol(argv[1]); // non-windows
+#endif // _WIN32
+        
+        fprintf(stderr,"replay %llu\n",(long long)seed);
+        return(games_replay(seed,3));
     }
     else
     {
         if ( fp != 0 )
             fclose(fp);
-        if ( ROGUE_PORT == 0 )
+        if ( GAMES_PORT == 0 )
         {
-            printf("you must copy ROGUE.conf from ~/.komodo/ROGUE/ROGUE.conf (or equivalent location) to current dir\n");
+            printf("you must copy %s.conf from ~/.komodo/%s/%s.conf (or equivalent location) to current dir\n",ASSETCHAINS_SYMBOL,ASSETCHAINS_SYMBOL,ASSETCHAINS_SYMBOL);
             return(-1);
         }
-        return(rogue(argc,argv,envp));
+        return(GAMEMAIN(argc,argv));
     }
 }
+
