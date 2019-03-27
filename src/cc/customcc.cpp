@@ -18,6 +18,16 @@ Send burn amount to CC unspendable address with OP_RETURN containing chain param
  --> each txid is in a global list 
  --> min burn amount is 2000*COIN to prevent spam 
  --> doing chaininfo txid (from list) will give the chain params as a string in JSON format the same as assetchains.json. 
+ 
+ to make a new CC address for built in:
+getnewaddress
+validateaddress <newaddr>
+change if ( 0 ) -> if ( 1 ) in CCutils.cpp Myprivkey
+launch with -pubkey=<pubkey>
+do anything to use Myprivkey and this will print the privkey array
+add all the #define in CCcustom.cpp and make sure to set the cp-> vars in CCinit
+of course add EVAL_newcode in eval.h
+
  */
 
 // start of consensus code
@@ -103,11 +113,11 @@ UniValue createchain(struct CCcontract_info *cp,const char *params)
                 return result;
             }
             supply = rawsupply*COIN; // convert to sats.
-        }
-        tempstr.assign(params); // convert to std::string object (easier to work with)
-        free_json(jparams); // free mem assigned to JSON! 
-        rawhex = CreateChain(cp, tempstr, supply);
-        return(custom_rawtxresult(result, rawhex, 0)); // send the tx, change 0 to 1 to make sending default behaviour. 
+            tempstr.assign(params); // convert to std::string object (easier to work with)
+            free_json(jparams); // free mem assigned to JSON! 
+            rawhex = CreateChain(cp, tempstr, supply);
+            return(custom_rawtxresult(result, rawhex, 0)); // send the tx, change 0 to 1 to make sending default behaviour. 
+        } else result.push_back(Pair("error","params not valid json"));
     } else result.push_back(Pair("error","no params entered."));
     return result;
 }
@@ -165,11 +175,7 @@ UniValue chaininfo(struct CCcontract_info *cp,cJSON *params)
                 {
                     if ( (jparams= cJSON_Parse(sparams.c_str())) != 0 )
                     {
-                        name = jstr(jparams,(char*)"ac_name");
-                        if ( name != 0 )
-                            result.push_back(Pair(name,sparams));
-                        else 
-                            result.push_back(Pair("error","could not extract name"));
+                        result.push_back(Pair("params", sparams));
                         free_json(jparams);
                     } else result.push_back(Pair("error","chain params not valid json"));
                 } else result.push_back(Pair("error","could not decode chain params"));
