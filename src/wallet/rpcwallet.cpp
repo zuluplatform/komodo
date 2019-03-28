@@ -7947,8 +7947,19 @@ UniValue heirlist(const UniValue& params, bool fHelp)
 	return (HeirList());
 }
 
+// LABS CC RPC calls 
+UniValue labssaddress(const UniValue& params, bool fHelp)
+{
+    UniValue result(UniValue::VOBJ); struct CCcontract_info *cp,C; std::vector<unsigned char> pubkey;
 
-
+    cp = CCinit(&C,EVAL_LABS);
+    if ( fHelp || params.size() != 1 )
+        throw runtime_error("labsaddress pubkey\n");
+    if ( ensure_CCrequirements(EVAL_LABS) < 0 )
+        throw runtime_error("to use CC contracts, you need to launch daemon with valid -pubkey= for an address in your wallet\n");
+    pubkey = ParseHex(params[0].get_str().c_str());
+    return(CCaddress(cp,(char *)"LABS",pubkey));
+}
 
 extern UniValue dumpprivkey(const UniValue& params, bool fHelp); // in rpcdump.cpp
 extern UniValue importprivkey(const UniValue& params, bool fHelp);

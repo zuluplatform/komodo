@@ -23,7 +23,7 @@ std::string MYCCLIBNAME = (char *)"customcc";
 #define RPC_FUNCS    \
     { (char *)MYCCNAME, (char *)"chainlist", (char *)"<no args>", 0, 0, '0', EVAL_CUSTOM }, \
     { (char *)MYCCNAME, (char *)"chaininfo", (char *)"<txid>", 1, 1, '1', EVAL_CUSTOM }, \
-    { (char *)MYCCNAME, (char *)"createchain", (char *)"<chain_params_JSON>", 0, 0, '2', EVAL_CUSTOM },
+    { (char *)MYCCNAME, (char *)"createchain", (char *)"<chain_params_JSON>", 1, 1, '2', EVAL_CUSTOM },
 
 bool custom_validate(struct CCcontract_info *cp,int32_t height,Eval *eval,const CTransaction tx);
 UniValue chainlist(struct CCcontract_info *cp,cJSON *params);

@@ -31,6 +31,7 @@
 #include "CCPayments.h"
 #include "CCGateways.h"
 #include "CCtokens.h"
+#include "CCLABS.h"
 
 /*
  CCcustom has most of the functions that need to be extended to create a new CC contract.
@@ -234,6 +235,17 @@ uint8_t TokensCCpriv[32] = { 0x1d, 0x0d, 0x0d, 0xce, 0x2d, 0xd2, 0xe1, 0x9d, 0xf
 #undef FUNCNAME
 #undef EVALCODE
 
+// LABSCC
+#define FUNCNAME IsLABSInput
+#define EVALCODE EVAL_LABS
+const char *LABSCCaddr = "R9qjFuCNHa3U7zvyTVGg97XHyHz5Pef8Q2";
+const char *LABSNormaladdr = "RLabsCCvKzQZtHzKRHShcuYpmAK8REsoKb";
+char LABSCChexstr[67] = { "02ce0d8aa0e710c77f3aafbe337a0b4ca16824223bd3989b17483a074bd5063a85" };
+uint8_t LABSCCpriv[32] = { 0x1e, 0xb8, 0x68, 0xa4, 0xd1, 0x28, 0x2c, 0x21, 0xbb, 0xbb, 0xec, 0x53, 0x89, 0x8c, 0xeb, 0x62, 0x50, 0x74, 0x2f, 0x5d, 0x01, 0xf1, 0xd9, 0xa4, 0x3d, 0x0f, 0x7e, 0x54, 0x2a, 0x28, 0x4f, 0xa4 };
+#include "CCcustom.inc"
+#undef FUNCNAME
+#undef EVALCODE
+
 #define FUNCNAME IsCClibInput
 #define EVALCODE EVAL_FIRSTUSER
 const char *CClibNormaladdr = "RVVeUg43rNcq3mZFnvZ8yqagyzqFgUnq4u";
@@ -416,7 +428,6 @@ struct CCcontract_info *CCinit(struct CCcontract_info *cp, uint8_t evalcode)
             cp->validate = GatewaysValidate;
             cp->ismyvin = IsGatewaysInput;
             break;
-
 		case EVAL_TOKENS:
 			strcpy(cp->unspendableCCaddr, TokensCCaddr);
 			strcpy(cp->normaladdr, TokensNormaladdr);
@@ -425,6 +436,14 @@ struct CCcontract_info *CCinit(struct CCcontract_info *cp, uint8_t evalcode)
 			cp->validate = TokensValidate;
 			cp->ismyvin = IsTokensInput;
 			break;
+        case EVAL_LABS:
+            strcpy(cp->unspendableCCaddr, LABSCCaddr);
+            strcpy(cp->normaladdr, LABSNormaladdr);
+            strcpy(cp->CChexstr, LABSCChexstr);
+            memcpy(cp->CCpriv, LABSCCpriv, 32);
+            cp->validate = LABSValidate;
+            cp->ismyvin = IsLABSInput;
+            break;
         default:
             if ( CClib_initcp(cp,evalcode) < 0 )
                 return(0);
@@ -432,4 +451,3 @@ struct CCcontract_info *CCinit(struct CCcontract_info *cp, uint8_t evalcode)
     }
     return(cp);
 }
-

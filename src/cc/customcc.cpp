@@ -14,7 +14,25 @@
  ******************************************************************************/
 
 /*
-Send burn amount to CC unspendable address with OP_RETURN containing chain params. 
+you ask for min value and arbitrary hex string as input along with address... 
+this is then encoded to op_return and sent to the CCunspendable (also avalible in plan list, doesnt really matter how many made)
+to burn the coins you need the txid of the first tx. I assume got off chain, or from oracle? dont nessarily need to use ^ list but can
+uses op_return data in this tx to test conditions of burn. 
+
+burn opreturn, must contain txid of plan, the data and then any room left over as arbitrary data.
+if ( opret size > txid length + length of wanted data ) 
+    there is extra hex string to display in output RPC (the json for chain params, for labs)
+if they dont contain the right data or the amount isnt high enough coins can be spent from the address. 
+---> say in RRC error, but if it was sent anyway just allow it to be spent as a normal vout. 
+
+Send vout to CC unspendable address with OP_RETURN containing:
+some plan? that has min burn amount and address 
+ccvout is unspendable when sent to the address that is contained in its opret
+--> can spend it back to sender if doesnt meet min amount 
+---> contains vector of u8ints as data, leave TUI/GUI to encode/decode JSON 
+this way it can be used for any data.
+
+--> the rest of the opret 
  --> each txid is in a global list 
  --> min burn amount is 2000*COIN to prevent spam 
  --> doing chaininfo txid (from list) will give the chain params as a string in JSON format the same as assetchains.json. 
@@ -161,7 +179,7 @@ UniValue chaininfo(struct CCcontract_info *cp,cJSON *params)
 {
     // This is much the same as the RPC above except it takes the txid as input and returns the entire params. 
     // Maybe we dont need this one and just return all params in the list command, although I think this is good. 
-    UniValue result(UniValue::VOBJ); 
+    UniValue result(UniValue::VOBJ); uint32_t rawsupply;
     CTransaction vintx; uint256 hashBlock,txid; std::string sparams; cJSON *jparams; char *name;
     if ( params != 0 && cJSON_GetArraySize(params) == 1 )
     {
@@ -175,7 +193,11 @@ UniValue chaininfo(struct CCcontract_info *cp,cJSON *params)
                 {
                     if ( (jparams= cJSON_Parse(sparams.c_str())) != 0 )
                     {
-                        result.push_back(Pair("params", sparams));
+                        rawsupply = jint(jparams,(char*)"ac_supply");
+                        if ( rawsupply*COIN == vintx.vout[0].nValue )
+                            result.push_back(Pair("params", sparams));
+                        else 
+                            result.push_back(Pair("error","the wrong amount of coins were burnt"));
                         free_json(jparams);
                     } else result.push_back(Pair("error","chain params not valid json"));
                 } else result.push_back(Pair("error","could not decode chain params"));
