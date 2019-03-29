@@ -1014,6 +1014,15 @@ bool ContextualCheckCoinbaseTransaction(const CTransaction& tx, const int nHeigh
         }
         return(false);
     }
+    else if ( ASSETCHAINS_MARMARA != 0 && nHeight > 0 && (nHeight & 1) == 0 )
+    {
+        
+    }
+    else if ( ASSETCHAINS_CBOPRET != 0 && nHeight > 0 && tx.vout.size() > 0 )
+    {
+        if ( komodo_opretvalidate(nHeight,tx.vout[tx.vout.size()-1].scriptPubKey) < 0 )
+            return(false);
+    }
     return(true);
 }
 
@@ -1383,7 +1392,7 @@ bool CheckTransactionWithoutProofVerification(uint32_t tiptime,const CTransactio
             }
         }
         if ( txout.scriptPubKey.size() > IGUANA_MAXSCRIPTSIZE )
-            return state.DoS(100, error("CheckTransaction(): txout.scriptPubKey.size() too big"),REJECT_INVALID, "bad-txns-vout-negative");
+            return state.DoS(100, error("CheckTransaction(): txout.scriptPubKey.size() too big"),REJECT_INVALID, "bad-txns-opret-too-big");
         nValueOut += txout.nValue;
         if (!MoneyRange(nValueOut))
             return state.DoS(100, error("CheckTransaction(): txout total out of range"),
