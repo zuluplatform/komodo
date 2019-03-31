@@ -172,7 +172,7 @@ UniValue geterablockheights(const UniValue& params, bool fHelp)
           "getnotarysendmany\n"
           "Returns a JSON object with the first block in each era.\n"
           );
-      
+
     CBlockIndex *pindex; int8_t lastera,era = 0; UniValue ret(UniValue::VOBJ);
 
     for (size_t i = 1; i < chainActive.LastTip()->GetHeight(); i++)
@@ -187,7 +187,7 @@ UniValue geterablockheights(const UniValue& params, bool fHelp)
             lastera = era;
         }
     }
-    
+
     return(ret);
 }
 
@@ -304,7 +304,7 @@ UniValue getinfo(const UniValue& params, bool fHelp)
         obj.push_back(Pair("CCid",        (int)ASSETCHAINS_CC));
         /*if ( ASSETCHAINS_CC > 1 )
         {
-            // isnt needed any more! NULL MoMoM is fixed! 
+            // isnt needed any more! NULL MoMoM is fixed!
             int limit = 3;
             int ppMoMheight = komodo_prevMoMheight(prevMoMheight-1);
             for (int8_t i = 0; i < limit; i++) {
@@ -1203,6 +1203,55 @@ UniValue getaddressdeltas(const UniValue& params, bool fHelp)
 
 UniValue getaddressbalance(const UniValue& params, bool fHelp)
 {
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "checknotarization\n"
+            "\nReturns true if burn address balance is greater than total notary pay. (requires addressindex to be enabled).\n"
+        );
+
+    if ( ASSETCHAINS_NOTARY_PAY[0] == 0 )
+        throw runtime_error("only works for ac_notarypay chains");
+
+    CBitcoinAddress address("burn address");
+    uint160 hashBytes;
+    int type = 0;
+    if (!address.GetIndexKey(hashBytes, type)) {
+          throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+    }
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    if (!GetAddressIndex(hashBytes, type, addressIndex)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
+    }
+
+    CAmount balance = 0;
+    CAmount received = 0;
+
+    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
+        if (it->second > 0) {
+            received += it->second;
+        }
+        balance += it->second;
+    }
+
+    // Get notary pay from current chain tip
+    CBlockIndex* pindex = chainActive.LastTip();
+    int64_t nNotaryPay = pindex->nNotaryPay;
+    UniValue result(UniValue::VOBJ);
+
+    if ( nNotaryPay >= balance)
+    {
+        result.push_back(Pair("error","no burnt funds avalible for notary pay"))
+    }
+    result.push_back(Pair("balance", balance));
+    result.push_back(Pair("received", received));
+    result.push_back(Pair("nNotaryPay"), nNotaryPay);
+    return result;
+    // return true;
+}
+
+/*
+UniValue getaddressbalance(const UniValue& params, bool fHelp)
+{
     if (fHelp || params.size() != 1)
         throw runtime_error(
             "getaddressbalance\n"
@@ -1255,7 +1304,7 @@ UniValue getaddressbalance(const UniValue& params, bool fHelp)
 
     return result;
 
-}
+} */
 
 UniValue komodo_snapshot(int top);
 
@@ -1477,16 +1526,16 @@ UniValue decodeccopret(const UniValue& params, bool fHelp)
     if (fHelp || params.size() < 1 || params.size() > 1)
     {
         string msg = "decodeccopret scriptPubKey\n"
-            "\nReturns eval code and function id for CC OP RETURN data.\n"           
+            "\nReturns eval code and function id for CC OP RETURN data.\n"
 
             "\nArguments:\n"
-            "1. scriptPubKey      (string, required) Hex of scriptPubKey with OP_RETURN data.\n"          
+            "1. scriptPubKey      (string, required) Hex of scriptPubKey with OP_RETURN data.\n"
 
             "\nResult:\n"
             "{\n"
-            "  eval_code,  (string) Eval code name.\n" 
-            "  function,   (char) Function id char.\n"           
-            "}\n"           
+            "  eval_code,  (string) Eval code name.\n"
+            "  function,   (char) Function id char.\n"
+            "}\n"
         ;
         throw runtime_error(msg);
     }
@@ -1496,12 +1545,12 @@ UniValue decodeccopret(const UniValue& params, bool fHelp)
     if (DecodeTokenOpRet(scripthex,tokenevalcode,tokenid,pubkeys, oprets)!=0 && tokenevalcode==EVAL_TOKENS && oprets.size()>0)
     {
         // seems we need a loop here
-        vOpretExtra = oprets[0].second;  
+        vOpretExtra = oprets[0].second;
         UniValue obj(UniValue::VOBJ);
         GetOpReturnData(scripthex,vopret);
         script = (uint8_t *)vopret.data();
         if ( vopret.size() > 1)
-        {        
+        {
             char func[5];
             sprintf(func,"%c",script[1]);
             obj.push_back(Pair("eval_code", EvalToStr(script[0])));
@@ -1517,10 +1566,10 @@ UniValue decodeccopret(const UniValue& params, bool fHelp)
     else GetOpReturnData(scripthex,vopret);
     script = (uint8_t *)vopret.data();
     if ( vopret.size() > 1)
-    {        
+    {
         char func[5]; UniValue obj(UniValue::VOBJ);
         result.push_back(Pair("result", "success"));
-        sprintf(func,"%c",script[1]);        
+        sprintf(func,"%c",script[1]);
         obj.push_back(Pair("eval_code", EvalToStr(script[0])));
         obj.push_back(Pair("function", func));
         array.push_back(obj);

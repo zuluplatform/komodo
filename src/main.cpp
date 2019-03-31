@@ -1016,7 +1016,7 @@ bool ContextualCheckCoinbaseTransaction(const CTransaction& tx, const int nHeigh
     }
     else if ( ASSETCHAINS_MARMARA != 0 && nHeight > 0 && (nHeight & 1) == 0 )
     {
-        
+
     }
     else if ( ASSETCHAINS_CBOPRET != 0 && nHeight > 0 && tx.vout.size() > 0 )
     {
@@ -1345,7 +1345,7 @@ bool CheckTransactionWithoutProofVerification(uint32_t tiptime,const CTransactio
 
     // Transactions containing empty `vin` must have either non-empty
     // `vjoinsplit` or non-empty `vShieldedSpend`.
-    if (tx.vin.empty() && tx.vjoinsplit.empty() && tx.vShieldedSpend.empty()) 
+    if (tx.vin.empty() && tx.vjoinsplit.empty() && tx.vShieldedSpend.empty())
         return state.DoS(10, error("CheckTransaction(): vin empty"),
                          REJECT_INVALID, "bad-txns-vin-empty");
 
@@ -1819,7 +1819,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
         double dPriority = view.GetPriority(tx, chainActive.Height());
         if ( nValueOut > 777777*COIN && KOMODO_VALUETOOBIG(nValueOut - 777777*COIN) != 0 ) // some room for blockreward and txfees
             return state.DoS(100, error("AcceptToMemoryPool: GetValueOut too big"),REJECT_INVALID,"tx valueout is too big");
-  
+
         // Keep track of transactions that spend a coinbase, which we re-scan
         // during reorgs to ensure COINBASE_MATURITY is still met.
         bool fSpendsCoinbase = false;
@@ -2019,8 +2019,8 @@ bool RemoveOrphanedBlocks(int32_t notarized_height)
     std::vector<const CBlockIndex*> prunedblocks;
     std::set<const CBlockIndex*, CompareBlocksByHeightMain> setTips;
     int32_t m=0,n = 0;
-    // get notarised timestamp and use this as a backup incase the forked block has no height. 
-    // we -600 to make sure the time is within future block constraints. 
+    // get notarised timestamp and use this as a backup incase the forked block has no height.
+    // we -600 to make sure the time is within future block constraints.
     uint32_t notarized_timestamp = komodo_heightstamp(notarized_height)-600;
     // Most of this code is a direct copy from GetChainTips RPC. Which gives a return of all
     // blocks that are not in the main chain.
@@ -2042,19 +2042,19 @@ bool RemoveOrphanedBlocks(int32_t notarized_height)
     const CBlockIndex *forked;
     BOOST_FOREACH(const CBlockIndex* block, setTips)
     {
-        // We skip anything over notarised height to avoid breaking normal consensus rules. 
+        // We skip anything over notarised height to avoid breaking normal consensus rules.
         if ( block->GetHeight() > notarized_height || block->nTime > notarized_timestamp )
             continue;
-        // We can also check if the block is in the active chain as a backup test. 
+        // We can also check if the block is in the active chain as a backup test.
         forked = chainActive.FindFork(block);
         // Here we save each forked block to a vector for removal later.
         if ( forked != 0 )
-            prunedblocks.push_back(block); 
+            prunedblocks.push_back(block);
     }
     if (prunedblocks.size() > 0 && pblocktree->EraseBatchSync(prunedblocks))
     {
         // Blocks cleared from disk succesfully, using internal DB batch erase function. Which exists, but has never been used before.
-        // We need to try and clear the block index from mapBlockIndex now, otherwise node will need a restart. 
+        // We need to try and clear the block index from mapBlockIndex now, otherwise node will need a restart.
         BOOST_FOREACH(const CBlockIndex* block, prunedblocks)
         {
             m++;
@@ -2062,7 +2062,7 @@ bool RemoveOrphanedBlocks(int32_t notarized_height)
         }
         fprintf(stderr, "%s removed %d orphans from %d blocks before %d\n",ASSETCHAINS_SYMBOL,m,n, notarized_height);
         return true;
-    }    
+    }
     return false;
 }
 
@@ -3268,6 +3268,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     auto disabledVerifier = libzcash::ProofVerifier::Disabled();
     int32_t futureblock;
     CAmount blockReward = 0;
+    uint64_t notarypaycheque = 0;
     // Check it again to verify JoinSplit proofs, and in case a previous version let a bad block in
     if (!CheckBlock(&futureblock,pindex->GetHeight(),pindex,block, state, fExpensiveChecks ? verifier : disabledVerifier, fCheckPOW, !fJustCheck) || futureblock != 0 )
     {
@@ -3287,14 +3288,14 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     {
         // do a full block scan to get notarisation position and to enforce a valid notarization is in position 1.
         // if notarisation in the block, must be position 1 and the coinbase must pay notaries.
-        int notarisationTx = komodo_connectblock(true,pindex,*(CBlock *)&block);  
+        int notarisationTx = komodo_connectblock(true,pindex,*(CBlock *)&block);
         // -1 means that the valid notarization isnt in position 1 or there are too many notarizations in this block.
         if ( notarisationTx == -1 )
             return state.DoS(100, error("ConnectBlock(): Notarization is not in TX position 1 or block contains more than 1 notarization! Invalid Block!"),
                         REJECT_INVALID, "bad-notarization-position");
         // 1 means this block contains a valid notarisation and its in position 1.
         // its no longer possible for any attempted notarization to be in a block with a valid one!
-        // if notaries create a notarisation even if its not in this chain it will need to be mined inside its own block! 
+        // if notaries create a notarisation even if its not in this chain it will need to be mined inside its own block!
         if ( notarisationTx == 1 )
         {
             // Check if the notaries have been paid.
@@ -3302,7 +3303,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 return state.DoS(100, error("ConnectBlock(): Notaries have not been paid!"),
                                 REJECT_INVALID, "bad-cb-amount");
             // calculate the notaries compensation and validate the amounts and pubkeys are correct.
-            uint64_t notarypaycheque = komodo_checknotarypay((CBlock *)&block,(int32_t)pindex->GetHeight());
+            notarypaycheque = komodo_checknotarypay((CBlock *)&block,(int32_t)pindex->GetHeight());
             if ( notarypaycheque > 0 )
                 blockReward += notarypaycheque;
             else
@@ -3663,7 +3664,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             pindex->nUndoPos = pos.nPos;
             pindex->nStatus |= BLOCK_HAVE_UNDO;
         }
-        
+
         // Now that all consensus rules have been validated, set nCachedBranchId.
         // Move this if BLOCK_VALID_CONSENSUS is ever altered.
         static_assert(BLOCK_VALID_CONSENSUS == BLOCK_VALID_SCRIPTS,
@@ -3674,7 +3675,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         } else if (pindex->pprev) {
             pindex->nCachedBranchId = pindex->pprev->nCachedBranchId;
         }
-        
+
         pindex->RaiseValidity(BLOCK_VALID_SCRIPTS);
         setDirtyBlockIndex.insert(pindex);
     }
@@ -3736,6 +3737,12 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     //FlushStateToDisk();
     komodo_connectblock(false,pindex,*(CBlock *)&block);  // dPoW state update.
+    if ( ASSETCHAINS_NOTARY_PAY[0] != 0 && pindex->GetHeight() > 10 )
+    {
+      // Update the notary pay with the latest payment.
+      pindex->nNotaryPay = pindex->pprev->nNotaryPay + notarypaycheque;
+      fprintf(stderr, "total notary pay.%li\n", pindex->nNotaryPay);
+    }
     return true;
 }
 
@@ -3944,6 +3951,7 @@ bool static DisconnectTip(CValidationState &state, bool fBare = false) {
         DisconnectNotarisations(block);
     }
     pindexDelete->segid = -2;
+    pindexDelete->nNotaryPay = 0; // not sure this is needed or not?
     pindexDelete->newcoins = 0;
     pindexDelete->zfunds = 0;
 
@@ -4654,7 +4662,7 @@ bool FindBlockPos(int32_t tmpflag,CValidationState &state, CDiskBlockPos &pos, u
     LOCK(cs_LastBlockFile);
 
     unsigned int nFile,maxTempFileSize;
-    
+
     if ( tmpflag != 0 )
     {
         ptr = &tmpBlockFiles;
@@ -4677,7 +4685,7 @@ bool FindBlockPos(int32_t tmpflag,CValidationState &state, CDiskBlockPos &pos, u
             vinfoBlockFile.resize(nFile + 1);
         }
     }
-    
+
     if (!fKnown) {
         bool tmpfileflag = false;
         while ( (*ptr)[nFile].nSize + nAddSize >= ((tmpflag != 0) ? maxTempFileSize : MAX_BLOCKFILE_SIZE) ) {
@@ -4702,7 +4710,7 @@ bool FindBlockPos(int32_t tmpflag,CValidationState &state, CDiskBlockPos &pos, u
         {
             if ( nFile == 1 ) // Trying to get to second temp file.
             {
-                if (!PruneOneBlockFile(true,TMPFILE_START+1)) 
+                if (!PruneOneBlockFile(true,TMPFILE_START+1))
                 {
                     // file 1 is not ready to be used yet increase file 0's size.
                     fprintf(stderr, "Cant clear file 1!\n");
@@ -4713,7 +4721,7 @@ bool FindBlockPos(int32_t tmpflag,CValidationState &state, CDiskBlockPos &pos, u
                     // Increase temp file one's max size by a chunk, so we wait a reasonable time to recheck the other file.
                     maxTempFileSize0 += BLOCKFILE_CHUNK_SIZE;
                 }
-                else 
+                else
                 {
                     // The file 1 is able to be used now. Reset max size, and set nfile to use file 1.
                     fprintf(stderr, "CLEARED file 1!\n");
@@ -4723,14 +4731,14 @@ bool FindBlockPos(int32_t tmpflag,CValidationState &state, CDiskBlockPos &pos, u
                     pos.nFile = TMPFILE_START+1;
                     pos.nPos = (*ptr)[1].nSize;
                     boost::filesystem::remove(GetBlockPosFilename(pos, "blk"));
-                    LogPrintf("Prune: deleted temp blk (%05u)\n",nFile);    
+                    LogPrintf("Prune: deleted temp blk (%05u)\n",nFile);
                 }
                 if ( 0 && tmpflag != 0 )
                     fprintf(stderr,"pos.nFile %d nPos %u\n",pos.nFile,pos.nPos);
             }
             else if ( nFile == 2 ) // Trying to get to third temp file.
             {
-                if (!PruneOneBlockFile(true,TMPFILE_START)) 
+                if (!PruneOneBlockFile(true,TMPFILE_START))
                 {
                     fprintf(stderr, "Cant clear file 0!\n");
                     // We will reset the position to the end of the second block file, even if its over max size.
@@ -4740,7 +4748,7 @@ bool FindBlockPos(int32_t tmpflag,CValidationState &state, CDiskBlockPos &pos, u
                     // Increase temp file one's max size by a chunk, so we wait a reasonable time to recheck the other file.
                     maxTempFileSize1 += BLOCKFILE_CHUNK_SIZE;
                 }
-                else 
+                else
                 {
                     // The file 0 is able to be used now. Reset max size, and set nfile to use file 0.
                     fprintf(stderr, "CLEARED file 0!\n");
@@ -4750,7 +4758,7 @@ bool FindBlockPos(int32_t tmpflag,CValidationState &state, CDiskBlockPos &pos, u
                     pos.nFile = TMPFILE_START;
                     pos.nPos = (*ptr)[0].nSize;
                     boost::filesystem::remove(GetBlockPosFilename(pos, "blk"));
-                    LogPrintf("Prune: deleted temp blk (%05u)\n",nFile);  
+                    LogPrintf("Prune: deleted temp blk (%05u)\n",nFile);
                 }
                 if ( 0 && tmpflag != 0 )
                     fprintf(stderr,"pos.nFile %d nPos %u\n",pos.nFile,pos.nPos);
@@ -5358,7 +5366,7 @@ bool AcceptBlock(int32_t *futureblockp,CBlock& block, CValidationState& state, C
 
     int nHeight = pindex->GetHeight();
     // Temp File fix. LABS has been using this for ages with no bad effects.
-    // Disabled here. Set use tmp to whatever you need to use this for. 
+    // Disabled here. Set use tmp to whatever you need to use this for.
     int32_t usetmp = 1;
     if ( IsInitialBlockDownload() )
         usetmp = 0;
@@ -5515,7 +5523,7 @@ bool ProcessNewBlock(bool from_miner,int32_t height,CValidationState &state, CNo
                     pfrom->nBlocksinARow2 = 0;
                     fprintf(stderr, "reset node.%i\n",(int32_t)pfrom->GetId());
                 }
-                else 
+                else
                 {
                     fprintf(stderr, "Requesting new peer node.%i blocksinrow.%i blocsinrow2.%i\n",(int32_t)pfrom->GetId(),pfrom->nBlocksinARow,pfrom->nBlocksinARow2);
                     return(false);
@@ -5623,13 +5631,13 @@ bool PruneOneBlockFile(bool tempfile, const int fileNumber)
     uint256 notarized_hash,notarized_desttxid; int32_t prevMoMheight,notarized_height;
     notarized_height = komodo_notarized_height(&prevMoMheight,&notarized_hash,&notarized_desttxid);
     //fprintf(stderr, "pruneblockfile.%i\n",fileNumber); sleep(15);
-    for (BlockMap::iterator it = mapBlockIndex.begin(); it != mapBlockIndex.end(); ++it) 
+    for (BlockMap::iterator it = mapBlockIndex.begin(); it != mapBlockIndex.end(); ++it)
     {
         CBlockIndex* pindex = it->second;
-        if (pindex && pindex->nFile == fileNumber) 
+        if (pindex && pindex->nFile == fileNumber)
         {
             if ( tempfile && (pindex->nStatus & BLOCK_IN_TMPFILE != 0) )
-            {    
+            {
                 if ( chainActive.Contains(pindex) )
                 {
                     // Block is in main chain so we cant clear this file!
@@ -5642,12 +5650,12 @@ bool PruneOneBlockFile(bool tempfile, const int fileNumber)
                     // We cant clear this file!
                     return(false);
                 }
-                else 
+                else
                 {
                     // Block is not in main chain and is older than last notarised block so its safe for removal.
                     fprintf(stderr, "Block [%i] in tempfile.%i We can clear this block!\n",pindex->GetHeight(),fileNumber);
-                    // Add index to list and remove after loop? 
-                }            
+                    // Add index to list and remove after loop?
+                }
             }
             pindex->nStatus &= ~BLOCK_HAVE_DATA;
             pindex->nStatus &= ~BLOCK_HAVE_UNDO;
@@ -5660,11 +5668,11 @@ bool PruneOneBlockFile(bool tempfile, const int fileNumber)
             // point it would be considered as a candidate for
             // mapBlocksUnlinked or setBlockIndexCandidates.
             std::pair<std::multimap<CBlockIndex*, CBlockIndex*>::iterator, std::multimap<CBlockIndex*, CBlockIndex*>::iterator> range = mapBlocksUnlinked.equal_range(pindex->pprev);
-            while (range.first != range.second) 
+            while (range.first != range.second)
             {
                 std::multimap<CBlockIndex *, CBlockIndex *>::iterator it = range.first;
                 range.first++;
-                if (it->second == pindex) 
+                if (it->second == pindex)
                 {
                     mapBlocksUnlinked.erase(it);
                 }
