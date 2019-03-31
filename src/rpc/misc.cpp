@@ -1240,11 +1240,11 @@ UniValue getaddressbalance(const UniValue& params, bool fHelp)
 
     if ( nNotaryPay >= balance)
     {
-        result.push_back(Pair("error","no burnt funds avalible for notary pay"))
+        result.push_back(Pair("error","no burnt funds avalible for notary pay"));
     }
     result.push_back(Pair("balance", balance));
     result.push_back(Pair("received", received));
-    result.push_back(Pair("nNotaryPay"), nNotaryPay);
+    result.push_back(Pair("nNotaryPay", nNotaryPay));
     return result;
     // return true;
 }
