@@ -1201,7 +1201,7 @@ UniValue getaddressdeltas(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue getaddressbalance(const UniValue& params, bool fHelp)
+UniValue checknotarization(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
@@ -1209,10 +1209,22 @@ UniValue getaddressbalance(const UniValue& params, bool fHelp)
             "\nReturns true if burn address balance is greater than total notary pay. (requires addressindex to be enabled).\n"
         );
 
+    UniValue result(UniValue::VOBJ);
+    // helper to test burn address's
+    /*uint8_t priv[32] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    uint8_t pub[33] =  { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    char coinaddr[64]; uint8_t buf33[33];
+    //pubkey2addr(coinaddr, pub);
+    priv2addr(coinaddr,buf33,priv);
+    fprintf(stderr, "what.%s\n", coinaddr);
+    result.push_back(Pair("address", coinaddr));
+    return result;
+    */
+    
     if ( ASSETCHAINS_NOTARY_PAY[0] == 0 )
         throw runtime_error("only works for ac_notarypay chains");
 
-    CBitcoinAddress address("burn address");
+    CBitcoinAddress address("REDVp3ox1pbcWYCzySadfHhk8UU3HM4k5x"); // pubkey 020000000000000000000000000000000 invalid?
     uint160 hashBytes;
     int type = 0;
     if (!address.GetIndexKey(hashBytes, type)) {
@@ -1236,20 +1248,12 @@ UniValue getaddressbalance(const UniValue& params, bool fHelp)
     // Get notary pay from current chain tip
     CBlockIndex* pindex = chainActive.LastTip();
     int64_t nNotaryPay = pindex->nNotaryPay;
-    UniValue result(UniValue::VOBJ);
 
-    if ( nNotaryPay >= balance)
-    {
-        result.push_back(Pair("error","no burnt funds avalible for notary pay"));
-    }
-    result.push_back(Pair("balance", balance));
-    result.push_back(Pair("received", received));
-    result.push_back(Pair("nNotaryPay", nNotaryPay));
-    return result;
-    // return true;
+    if ( nNotaryPay >= balance || received != balance )
+        return false;
+    return true;
 }
 
-/*
 UniValue getaddressbalance(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
@@ -1304,7 +1308,7 @@ UniValue getaddressbalance(const UniValue& params, bool fHelp)
 
     return result;
 
-} */
+} 
 
 UniValue komodo_snapshot(int top);
 
