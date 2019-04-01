@@ -29,8 +29,8 @@
 #define KOMODO_SAPLING_ACTIVATION 1544832000 // Dec 15th, 2018
 #define KOMODO_SAPLING_DEADLINE 1550188800 // Feb 15th, 2019
 #define _COINBASE_MATURITY 100
-#define ASSETCHAINS_N 96
-#define ASSETCHAINS_K 5
+#define ASSETCHAINS_N 77
+#define ASSETCHAINS_K 3
 
 #define SETBIT(bits,bitoffset) (((uint8_t *)bits)[(bitoffset) >> 3] |= (1 << ((bitoffset) & 7)))
 #define GETBIT(bits,bitoffset) (((uint8_t *)bits)[(bitoffset) >> 3] & (1 << ((bitoffset) & 7)))

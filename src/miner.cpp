@@ -1951,9 +1951,9 @@ void static BitcoinMiner()
                             ehSolverRuns.increment();
                             if (found) {
                                 int32_t i; uint256 hash = pblock->GetHash();
-                                for (i=0; i<32; i++)
-                                    fprintf(stderr,"%02x",((uint8_t *)&hash)[i]);
-                                fprintf(stderr," <- %s Block found %d\n",ASSETCHAINS_SYMBOL,Mining_height);
+                                //for (i=0; i<32; i++)
+                                //    fprintf(stderr,"%02x",((uint8_t *)&hash)[i]);
+                                //fprintf(stderr," <- %s Block found %d\n",ASSETCHAINS_SYMBOL,Mining_height);
                                 //FOUND_BLOCK = 1;
                                 //KOMODO_MAYBEMINED = Mining_height;
                                 break;
