@@ -112,7 +112,7 @@ static const char *notaries_STAKED[NUM_STAKED_ERAS][64][2] =
         {"zatJUM", "030fff499b6dc0215344b28a0b6b4becdfb00cd34cd1b36b983ec14f47965fd4bc" }, // RSoEDLBasth7anxS8gbkg6KgeGiz8rhqv1
         {"dwy", "03669457b2934d98b5761121dd01b243aed336479625b293be9f8c43a6ae7aaeff" }, // RKhZMqRF361FSGFAzstP5AhozekPjoVh5q
         {"gcharang", "03336ca9db27cb6e882830e20dc525884e27dc94d557a5e68b972a5cbf9e8c62a8" }, // RJYiWn3FRCSSLf9Pe5RJcbrKQYosaMburP
-        {"computergenie", "03448ce28fb21748e8b05bbe32d6b1e758b589ac1eb359e5d552f8868f2b75dc92" }, // RGeniexxkjnR34hg7ZnCf36kmfuJusf6rE
+        {"computergenie", "027313dabde94fb72f823231d0a1c59fc7baa2e5b3bb2af97ca7d70aae116026b9" }, // RLabsCGxTRqJcJvz6foKuXAB61puJ2x8yt
         {"daemonfox", "0383484bdc745b2b953c85b5a0c496a1f27bc42ae971f15779ed1532421b3dd943" }, //
         {"SHossain", "02791f5c215b8a19c143a98e3371ff03b5613df9ac430c4a331ca55fed5761c800" }, // RKdLoHkyeorXmMtj91B1AAnAGiwsdt9MdF
         {"Nabob", "03ee91c20b6d26e3604022f42df6bb8de6f669da4591f93b568778cba13d9e9ddf" }, // RRwCLPZDzpHEFJnLev4phy51e2stHRUAaU
