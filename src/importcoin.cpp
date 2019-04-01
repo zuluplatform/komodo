@@ -213,12 +213,17 @@ bool UnmarshalBurnTx(const CTransaction &burnTx, std::string &targetSymbol, uint
         uint8_t evalCodeInOpret;
         std::vector<CPubKey> voutTokenPubkeys;
 
-        //skip token opret:
-        if (DecodeTokenOpRet(burnTx.vout.back().scriptPubKey, evalCodeInOpret, tokenid, voutTokenPubkeys, oprets) == 0)
+        if (DecodeTokenOpRet(burnTx.vout.back().scriptPubKey, evalCodeInOpret, tokenid, voutTokenPubkeys, oprets) != 't')
             return false;
 
+        //skip token opret:
         GetOpretBlob(oprets, OPRETID_BURNDATA, vburnOpret);  // fetch burnOpret after token opret
+        if (vburnOpret.empty()) {
+            LOGSTREAM("importcoin", CCLOG_INFO, stream << "UnmarshalBurnTx() cannot unmarshal token burn tx: empty burn opret for tokenid=" << tokenid.GetHex() << std::endl);
+            return false;
+        }
     }
+
     if (vburnOpret.begin()[0] == EVAL_IMPORTCOIN) {
         uint8_t evalCode;
         return E_UNMARSHAL(vburnOpret,  ss >> evalCode;
@@ -248,9 +253,10 @@ bool UnmarshalBurnTxOld(const CTransaction &burnTx, std::string &targetSymbol, u
     return retcode;
 }
 
-
 /*
  * Required by main
+ * in main.cpp the returned value is used as valueIn for the import tx 
+ * the returned calue = burned value (which also includes extra txfee for relaying and miners. See migrate_createburntransaction)
  */
 CAmount GetCoinImportValue(const CTransaction &tx)
 {
@@ -271,26 +277,31 @@ CAmount GetCoinImportValue(const CTransaction &tx)
 
             if (isNewImportTx && vburnOpret.begin()[0] == EVAL_TOKENS) {      //if it is tokens
              
-             /* This code would not link because we are in a shared library with no most of cc modules
-                Assume we do not need this extended check for payouts because we could not have markers in them
-                and we do validate payouts outputs in eval::ImportCoin()
-                struct CCcontract_info *cpTokens, CCtokens_info;
-                cpTokens = CCinit(&CCtokens_info, EVAL_TOKENS);
+                uint8_t evalCodeInOpret;
+                uint256 tokenid;
+                std::vector<CPubKey> voutTokenPubkeys;
+                std::vector<std::pair<uint8_t, vscript_t>>  oprets;
 
-                CAmount ccOutput = 0;
-                for (auto v : payouts)
-                    if (v.scriptPubKey.IsPayToCryptoCondition() && CTxOut(v.nValue, v.scriptPubKey) != MakeCC1vout(EVAL_TOKENS, v.nValue, GetUnspendable(cpTokens, NULL)))  
-                        ccOutput += v.nValue;        */
+                if (DecodeTokenOpRet(tx.vout.back().scriptPubKey, evalCodeInOpret, tokenid, voutTokenPubkeys, oprets) == 0)
+                    return 0;
 
-                CAmount ccOutput = 0;
-                for (auto v = payouts.begin() + 1; v != payouts.end() - 1; v ++)  // skip marker, exclude opret
-                    if ((*v).scriptPubKey.IsPayToCryptoCondition())  
-                        ccOutput += (*v).nValue;
+                uint8_t nonfungibleEvalCode = EVAL_TOKENS; // init as if no non-fungibles
+                vscript_t vnonfungibleOpret;
+                GetOpretBlob(oprets, OPRETID_NONFUNGIBLEDATA, vnonfungibleOpret);
+                if (!vnonfungibleOpret.empty())
+                    nonfungibleEvalCode = vnonfungibleOpret.begin()[0];
 
-                return ccOutput;
+                // calc outputs for burn tx
+                int64_t ccBurnOutputs = 0;
+                for (auto v : burnTx.vout)
+                    if (v.scriptPubKey.IsPayToCryptoCondition() &&
+                        CTxOut(v.nValue, v.scriptPubKey) == MakeTokensCC1vout(nonfungibleEvalCode, v.nValue, pubkey2pk(ParseHex(CC_BURNPUBKEY))))  // burned to dead pubkey
+                        ccBurnOutputs += v.nValue;
+
+                return ccBurnOutputs + burnTx.vout.back().nValue;   // total token burned value
             }
             else
-                return burnTx.vout.back().nValue;
+                return burnTx.vout.back().nValue; // coin burned value
         }
     }
     return 0;

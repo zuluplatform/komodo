@@ -422,6 +422,9 @@ bool Eval::ImportCoin(const std::vector<uint8_t> params, const CTransaction &imp
 
     LOGSTREAM("importcoin", CCLOG_DEBUG1, stream << "Validating import tx..., txid=" << importTx.GetHash().GetHex() << std::endl);
 
+    if (strcmp(ASSETCHAINS_SYMBOL, "CFEKDIMXY6") == 0 && chainActive.Height() <= 10699)
+        return true;
+
     if ( importTx.vout.size() < 2 )
         return Invalid("too-few-vouts");
     // params
@@ -434,70 +437,76 @@ bool Eval::ImportCoin(const std::vector<uint8_t> params, const CTransaction &imp
     if (MakeImportCoinTransaction(proof, burnTx, payouts, importTx.nExpiryHeight).GetHash() != importTx.GetHash() &&    // ExistsImportTombstone prevents from burn tx duplication
         MakeImportCoinTransactionVout0(proof, burnTx, payouts, importTx.nExpiryHeight).GetHash() != importTx.GetHash() )  // compatibility
         return Invalid("non-canonical-import-tx");
+
     // get burn params
     if (!UnmarshalBurnTx(burnTx, targetSymbol, &targetCcid, payoutsHash, rawproof) && !UnmarshalBurnTxOld(burnTx, targetSymbol, &targetCcid, payoutsHash, rawproof)) //with support for old burn tx
         return Invalid("invalid-burn-tx");
     
-    if( burnTx.vout.size() == 0 )
-        return Invalid("invalid-burn-tx-no-vouts");
-
     vscript_t vimportOpret;
     if (isNewImportTx && !GetOpReturnData(importTx.vout.back().scriptPubKey, vimportOpret) ||       // new import tx
         !isNewImportTx && !GetOpReturnData(importTx.vout[0].scriptPubKey, vimportOpret) ||          // it is old import tx
         vimportOpret.empty())
         return Invalid("invalid-import-tx-no-opret");
 
+    if (burnTx.vout.size() == 0)
+        return Invalid("invalid-burn-tx-no-vouts");
 
+    // check burned normal amount >= import amount  && burned amount <= import amount + txfee (extra txfee is for miners and relaying, see GetImportCoinValue() func)
+    uint64_t burnAmount = burnTx.vout.back().nValue;
+    if (burnAmount == 0)
+        return Invalid("invalid-burn-amount");
+    uint64_t totalOut = 0;
+    for (auto v : importTx.vout)
+        totalOut += v.nValue;
+    if (totalOut > burnAmount || totalOut < burnAmount-txfee )
+        return Invalid("payout-too-high-or-too-low");
+    
     uint256 tokenid = zeroid;
-    // check burn amount
-    if( !isNewImportTx || vimportOpret.begin()[0] == EVAL_IMPORTCOIN )  // for coins (both for new or old opret)
-    {
-        uint64_t burnAmount = burnTx.vout.back().nValue;
-        if (burnAmount == 0)
-            return Invalid("invalid-burn-amount");
-        uint64_t totalOut = 0;
-        for (int i=0; i<importTx.vout.size(); i++)
-            totalOut += importTx.vout[i].nValue;
-        if (totalOut > burnAmount || totalOut < burnAmount-txfee )
-            return Invalid("payout-too-high-or-too-low");
-    }
-    else if (vimportOpret.begin()[0] == EVAL_TOKENS) { // for tokens (new opret with tokens)
+    if (isNewImportTx && vimportOpret.begin()[0] == EVAL_TOKENS) { // for tokens (new opret with tokens)
         struct CCcontract_info *cpTokens, CCtokens_info;
         std::vector<std::pair<uint8_t, vscript_t>>  oprets;
         uint8_t evalCodeInOpret;
         std::vector<CPubKey> voutTokenPubkeys;
         vscript_t vnonfungibleOpret;
-        uint8_t nonfungibleEvalCode = 0;
 
         cpTokens = CCinit(&CCtokens_info, EVAL_TOKENS);
 
         if (DecodeTokenOpRet(importTx.vout.back().scriptPubKey, evalCodeInOpret, tokenid, voutTokenPubkeys, oprets) == 0)  
             return Invalid("cannot-decode-import-tx-token-opret");
 
+        uint8_t nonfungibleEvalCode = EVAL_TOKENS; // init to no non-fungibles
         GetOpretBlob(oprets, OPRETID_NONFUNGIBLEDATA, vnonfungibleOpret);
         if (!vnonfungibleOpret.empty())
             nonfungibleEvalCode = vnonfungibleOpret.begin()[0];
 
+        // check if burn tx at least has cc evaltoken vins (we cannot get cc input)
+        bool hasTokenVin = false;
+        for (auto vin : burnTx.vin)
+            if (cpTokens->ismyvin(vin.scriptSig))
+                hasTokenVin = true;
+        if( !hasTokenVin )
+            return Invalid("burn-tx-has-no-token-vins");
+       
         // calc outputs for burn tx
-        int64_t burnAmount = 0;
+        int64_t ccBurnOutputs = 0;
         for (auto v : burnTx.vout)
             if (v.scriptPubKey.IsPayToCryptoCondition() && 
-                CTxOut(v.nValue, v.scriptPubKey) == MakeTokensCC1vout(nonfungibleEvalCode ? nonfungibleEvalCode : EVAL_TOKENS, v.nValue, pubkey2pk(ParseHex(CC_BURNPUBKEY))) )  // burned to dead pubkey
-                burnAmount += v.nValue;
+                CTxOut(v.nValue, v.scriptPubKey) == MakeTokensCC1vout(nonfungibleEvalCode, v.nValue, pubkey2pk(ParseHex(CC_BURNPUBKEY))) )  // burned to dead pubkey
+                ccBurnOutputs  += v.nValue;
 
         // calc outputs for import tx
-        int64_t importAmount = 0;
+        int64_t ccImportOutputs = 0;
         for (auto v : importTx.vout)  
             if (v.scriptPubKey.IsPayToCryptoCondition() && 
                 !IsTokenMarkerVout(v))  // should not be marker here
-                importAmount += v.nValue;
+                ccImportOutputs += v.nValue;
 
-        if( burnAmount != importAmount )
-            return Invalid("token-payout-too-high-or-too-low");
+        if(ccBurnOutputs != ccImportOutputs )
+            return Invalid("token-cc-burned-output-not-equal-cc-imported-output"); 
 
     }
-    else {
-        return Invalid("invalid-burn-tx-incorrect-opret");
+    else if(vimportOpret.begin()[0] != EVAL_IMPORTCOIN )  {
+        return Invalid("import-tx-incorrect-opret-eval");
     }
 
     // for tokens check burn, import, tokenbase tx 
@@ -606,12 +615,11 @@ bool Eval::ImportCoin(const std::vector<uint8_t> params, const CTransaction &imp
 
     // return Invalid("test-invalid");
     LOGSTREAM("importcoin", CCLOG_DEBUG2, stream << "Valid import tx! txid=" << importTx.GetHash().GetHex() << std::endl);
-
-    /*
-    if (vimportOpret.begin()[0] == EVAL_TOKENS)
+    
+    /*if (vimportOpret.begin()[0] == EVAL_TOKENS)
         return Invalid("test-invalid-tokens-are-good!!");
     else
-        return Invalid("test-invalid-coins-are-good!!");
-    */
+        return Invalid("test-invalid-coins-are-good!!");*/
+    
     return Valid();
 }
