@@ -96,7 +96,7 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
 
     if (fHelp || params.size() < 1 || params.size() > 4)
         throw runtime_error(
-            "importprivkey \"komodoprivkey\" ( \"label\" rescan )\n"
+            "importprivkey \"komodoprivkey\" ( \"label\" rescan height)\n"
             "\nAdds a private key (as returned by dumpprivkey) to your wallet.\n"
             "\nArguments:\n"
             "1. \"komodoprivkey\"   (string, required) The private key (see dumpprivkey)\n"
