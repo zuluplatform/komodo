@@ -217,7 +217,8 @@ void TxToJSONExpanded(const CTransaction& tx, const uint256 hashBlock, UniValue&
                 {
                     if (rawproof.size() > 0)
                     {
-                        std::string sourceSymbol(rawproof.begin(), rawproof.end());
+                        std::string sourceSymbol; // std::string sourceSymbol(rawproof.begin(), rawproof.end());
+                        E_UNMARSHAL(rawproof, ss >> sourceSymbol);
                         in.push_back(Pair("address", "IMP-" + sourceSymbol + "-" + burnTx.GetHash().ToString()));
                     }
                 }

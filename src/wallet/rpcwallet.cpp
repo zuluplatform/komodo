@@ -7384,9 +7384,9 @@ UniValue tokencreate(const UniValue& params, bool fHelp)
     
     if (params.size() == 4)    {
         nonfungibleData = ParseHex(params[3].get_str());
-        if (nonfungibleData.size() > 10000) // opret limit
+        if (nonfungibleData.size() >= IGUANA_MAXSCRIPTSIZE) // opret upper limit
         {
-            ERR_RESULT("Non-fungible data must be <= 10000");
+            ERR_RESULT(std::string("Non-fungible data must be <") + std::to_string(IGUANA_MAXSCRIPTSIZE));
             return(result);
         }
     }
