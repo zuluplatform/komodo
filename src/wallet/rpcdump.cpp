@@ -94,7 +94,7 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
 
-    if (fHelp || params.size() < 1 || params.size() > 3)
+    if (fHelp || params.size() < 1 || params.size() > 4)
         throw runtime_error(
             "importprivkey \"komodoprivkey\" ( \"label\" rescan )\n"
             "\nAdds a private key (as returned by dumpprivkey) to your wallet.\n"
@@ -102,6 +102,7 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
             "1. \"komodoprivkey\"   (string, required) The private key (see dumpprivkey)\n"
             "2. \"label\"            (string, optional, default=\"\") An optional label\n"
             "3. rescan               (boolean, optional, default=true) Rescan the wallet for transactions\n"
+            "4. height               (integer, optional, default=0) start at block height?\n"
             "\nNote: This call can take minutes to complete if rescan is true.\n"
             "\nExamples:\n"
             "\nDump a private key\n"
@@ -120,6 +121,7 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
 
     string strSecret = params[0].get_str();
     string strLabel = "";
+    int32_t height = 0;
     if (params.size() > 1)
         strLabel = params[1].get_str();
 
@@ -127,6 +129,8 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
     bool fRescan = true;
     if (params.size() > 2)
         fRescan = params[2].get_bool();
+    if ( fRescan && params.size() == 4 )
+        height = params[3].get_int();
 
     CKey key = DecodeSecret(strSecret);
     if (!key.IsValid()) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key encoding");
@@ -152,7 +156,7 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
         pwalletMain->nTimeFirstKey = 1; // 0 would be considered 'no value'
 
         if (fRescan) {
-            pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
+            pwalletMain->ScanForWalletTransactions(chainActive[height], true);
         }
     }
 
