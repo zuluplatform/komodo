@@ -417,7 +417,7 @@ int32_t CheckPUBKEYimport(TxProof proof,std::vector<uint8_t> rawproof,CTransacti
 
 bool Eval::ImportCoin(const std::vector<uint8_t> params, const CTransaction &importTx, unsigned int nIn)
 {
-    ImportProof proof; CTransaction burnTx; std::vector<CTxOut> payouts; uint64_t txfee = 10000;
+    ImportProof proof; CTransaction burnTx; std::vector<CTxOut> payouts; CAmount txfee = 10000;
     uint32_t targetCcid; std::string targetSymbol; uint256 payoutsHash; std::vector<uint8_t> rawproof;
 
     LOGSTREAM("importcoin", CCLOG_DEBUG1, stream << "Validating import tx..., txid=" << importTx.GetHash().GetHex() << std::endl);
@@ -452,12 +452,13 @@ bool Eval::ImportCoin(const std::vector<uint8_t> params, const CTransaction &imp
         return Invalid("invalid-burn-tx-no-vouts");
 
     // check burned normal amount >= import amount  && burned amount <= import amount + txfee (extra txfee is for miners and relaying, see GetImportCoinValue() func)
-    uint64_t burnAmount = burnTx.vout.back().nValue;
+    CAmount burnAmount = burnTx.vout.back().nValue;
     if (burnAmount == 0)
         return Invalid("invalid-burn-amount");
-    uint64_t totalOut = 0;
+    CAmount totalOut = 0;
     for (auto v : importTx.vout)
-        totalOut += v.nValue;
+        if (!v.scriptPubKey.IsPayToCryptoCondition())
+            totalOut += v.nValue;
     if (totalOut > burnAmount || totalOut < burnAmount-txfee )
         return Invalid("payout-too-high-or-too-low");
     
@@ -488,14 +489,14 @@ bool Eval::ImportCoin(const std::vector<uint8_t> params, const CTransaction &imp
             return Invalid("burn-tx-has-no-token-vins");
        
         // calc outputs for burn tx
-        int64_t ccBurnOutputs = 0;
+        CAmount ccBurnOutputs = 0;
         for (auto v : burnTx.vout)
             if (v.scriptPubKey.IsPayToCryptoCondition() && 
                 CTxOut(v.nValue, v.scriptPubKey) == MakeTokensCC1vout(nonfungibleEvalCode, v.nValue, pubkey2pk(ParseHex(CC_BURNPUBKEY))) )  // burned to dead pubkey
                 ccBurnOutputs  += v.nValue;
 
         // calc outputs for import tx
-        int64_t ccImportOutputs = 0;
+        CAmount ccImportOutputs = 0;
         for (auto v : importTx.vout)  
             if (v.scriptPubKey.IsPayToCryptoCondition() && 
                 !IsTokenMarkerVout(v))  // should not be marker here
