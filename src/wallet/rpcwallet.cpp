@@ -7431,7 +7431,7 @@ UniValue tokentransfer(const UniValue& params, bool fHelp)
         ERR_RESULT("amount must be positive");
         return(result);
     }
-    if (!destPubkey.IsValid()) {
+    if (!destPubkey.IsFullyValid()) {
         ERR_RESULT("invalid pubkey");
         return(result);
     }

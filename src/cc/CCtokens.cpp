@@ -424,8 +424,8 @@ int64_t IsTokensvout(bool goDeeper, bool checkPubkeys /*<--not used, always true
                 testVouts.push_back(std::make_pair(MakeCC1vout(EVAL_TOKENS, tx.vout[v].nValue, origPubkey), std::string("single-eval cc1 orig-pk")));
 
             // maybe this is like FillSell for non-fungible token?
-            if (evalCode1 != 0)
-                testVouts.push_back(std::make_pair(MakeTokensCC1vout(evalCode1, tx.vout[v].nValue, origPubkey), std::string("dual-eval-token cc1 orig-pk")));   
+            if (evalCodeNonfungible != 0)
+                testVouts.push_back(std::make_pair(MakeTokensCC1vout(evalCodeNonfungible, tx.vout[v].nValue, origPubkey), std::string("dual-eval-token cc1 orig-pk")));
 
             // note: this would not work if there are several privkeys in the tokencreator's wallet (AddNormalinputs does not use pubkey param):
             // for tokenbase tx check that normal inputs sent from origpubkey > cc outputs
