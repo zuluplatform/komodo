@@ -823,7 +823,7 @@ std::string CreateToken(int64_t txfee, int64_t tokensupply, std::string name, st
 
 // transfer tokens to another pubkey
 // param additionalEvalCode allows transfer of dual-eval non-fungible tokens
-std::string TokenTransfer(int64_t txfee, uint256 tokenid, vscript_t destpubkey, int64_t total)
+std::string TokenTransfer(int64_t txfee, uint256 tokenid, CPubKey destPubkey, int64_t total)
 {
 	CMutableTransaction mtx = CreateNewContextualCMutableTransaction(Params().GetConsensus(), komodo_nextheight());
 	CPubKey mypk; uint64_t mask; int64_t CCchange = 0, inputs = 0;  struct CCcontract_info *cp, C;
@@ -858,12 +858,12 @@ std::string TokenTransfer(int64_t txfee, uint256 tokenid, vscript_t destpubkey, 
             
 			if (inputs > total)
 				CCchange = (inputs - total);
-			mtx.vout.push_back(MakeTokensCC1vout(destEvalCode, total, pubkey2pk(destpubkey)));  // if destEvalCode == EVAL_TOKENS then it is actually MakeCC1vout(EVAL_TOKENS,...)
+			mtx.vout.push_back(MakeTokensCC1vout(destEvalCode, total, destPubkey));  // if destEvalCode == EVAL_TOKENS then it is actually MakeCC1vout(EVAL_TOKENS,...)
 			if (CCchange != 0)
 				mtx.vout.push_back(MakeTokensCC1vout(destEvalCode, CCchange, mypk));
 
 			std::vector<CPubKey> voutTokenPubkeys;
-			voutTokenPubkeys.push_back(pubkey2pk(destpubkey));  // dest pubkey for validating vout
+			voutTokenPubkeys.push_back(destPubkey);  // dest pubkey for validating vout
 
 			return FinalizeCCTx(mask, cp, mtx, mypk, txfee, EncodeTokenOpRet(tokenid, voutTokenPubkeys, std::make_pair((uint8_t)0, vopretEmpty))); 
 		}
