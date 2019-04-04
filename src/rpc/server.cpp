@@ -538,6 +538,7 @@ static const CRPCCommand vRPCCommands[] =
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
     { "addressindex",       "checknotarization",      &checknotarization,      false },
+    { "addressindex",       "getnotarypayinfo",       &getnotarypayinfo,       false },
     { "addressindex",       "getsnapshot",            &getsnapshot,            false },
 
     /* Utility functions */
