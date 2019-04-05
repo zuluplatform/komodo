@@ -82,8 +82,8 @@ bool TokensValidate(struct CCcontract_info *cp, Eval* eval, const CTransaction &
         if (tokenid == zeroid)
             return eval->Invalid("illegal tokenid");
 		else if (!TokensExactAmounts(true, cp, inputs, outputs, eval, tx, tokenid)) {
-			if (!eval->Valid())
-				return false;  //TokenExactAmounts must call eval->Invalid()!
+			if (!eval->state.IsValid())  // state already set
+				return false;  
 			else
 				return eval->Invalid("tokens cc inputs != cc outputs");
 		}
@@ -261,7 +261,7 @@ void FilterOutNonCCOprets(const std::vector<std::pair<uint8_t, vscript_t>>  &opr
 // also checks tokenid in opret or txid if this is 'c' tx
 // goDeeper is true: the func also validates amounts of the passed transaction: 
 // it should be either sum(cc vins) == sum(cc vouts) or the transaction is the 'tokenbase' ('c') tx
-// checkPubkeys is true: validates if the vout is token vout1 or token vout1of2. Should always be true!
+// checkPubkeys is true: validates if the vout is token vout (1 or 1of2). Should always be true!
 int64_t IsTokensvout(bool goDeeper, bool checkPubkeys /*<--not used, always true*/, struct CCcontract_info *cp, Eval* eval, const CTransaction& tx, int32_t v, uint256 reftokenid)
 {
 
@@ -293,16 +293,15 @@ int64_t IsTokensvout(bool goDeeper, bool checkPubkeys /*<--not used, always true
 
 			tokenValIndentSize++;
 			// false --> because we already at the 1-st level ancestor tx and do not need to dereference ancestors of next levels
-			bool isEqual = TokensExactAmounts(false, cp, ccInputs, ccOutputs, eval, tx, reftokenid);
+			bool result = TokensExactAmounts(false, cp, ccInputs, ccOutputs, eval, tx, reftokenid);
 			tokenValIndentSize--;
 
-			if (!isEqual) {
-				// if ccInputs != ccOutputs and it is not the tokenbase tx 
-				// this means it is possibly a fake tx (dimxy):
-				if (reftokenid != tx.GetHash()) {	// checking that this is the true tokenbase tx, by verifying that funcid=c, is done further in this function (dimxy)
-                    LOGSTREAM((char *)"cctokens", CCLOG_INFO, stream << indentStr << "IsTokensvout() warning: for the verified tx detected a bad vintx=" << tx.GetHash().GetHex() << ": cc inputs != cc outputs and not the 'tokenbase' tx, skipping the verified tx" << std::endl);
-					return 0;
+			if (!result) {
+				if (reftokenid != tx.GetHash() && ccInputs != ccOutputs) {	// checking that this is the true tokenbase tx, by verifying that funcid=c, is done further in this function (dimxy)
+                    // warn user that this fake tx is not taken into account:
+                    LOGSTREAM((char *)"cctokens", CCLOG_INFO, stream << indentStr << "IsTokensvout() warning: detected a bad token tx=" << tx.GetHash().GetHex() << ", its cc inputs != cc outputs and not tokenbase, this tx skipped" << std::endl);
 				}
+                return 0;
 			}
 		}
 
@@ -349,16 +348,16 @@ int64_t IsTokensvout(bool goDeeper, bool checkPubkeys /*<--not used, always true
 			// maybe this is dual-eval 1 pubkey or 1of2 pubkey vout?
 			if (voutPubkeys.size() >= 1 && voutPubkeys.size() <= 2) {					
 				// check dual/three-eval 1 pubkey vout with the first pubkey
-                testVouts.push_back( std::make_pair(MakeTokensCC1vout(evalCode1, evalCode2, tx.vout[v].nValue, voutPubkeys[0]), std::string("three-eval cc1 pk[0]")) );
+                testVouts.push_back( std::make_pair(MakeTokensCC1vout(evalCode1, evalCode2, tx.vout[v].nValue, voutPubkeys[0]), std::string("one..three-eval cc1 pk[0]")) );
                 if (evalCode2 != 0) 
                     // also check in backward evalcode order
-                    testVouts.push_back( std::make_pair(MakeTokensCC1vout(evalCode2, evalCode1, tx.vout[v].nValue, voutPubkeys[0]), std::string("three-eval cc1 pk[0] backward-eval")) );
+                    testVouts.push_back( std::make_pair(MakeTokensCC1vout(evalCode2, evalCode1, tx.vout[v].nValue, voutPubkeys[0]), std::string("one..three-eval cc1 pk[0] backward-eval")) );
 
 				if(voutPubkeys.size() == 2)	{
 					// check dual/three eval 1of2 pubkeys vout
-					testVouts.push_back( std::make_pair(MakeTokensCC1of2vout(evalCode1, evalCode2, tx.vout[v].nValue, voutPubkeys[0], voutPubkeys[1]), std::string("three-eval cc1of2")) );
+					testVouts.push_back( std::make_pair(MakeTokensCC1of2vout(evalCode1, evalCode2, tx.vout[v].nValue, voutPubkeys[0], voutPubkeys[1]), std::string("one..three-eval cc1of2")) );
                     // check dual/three eval 1 pubkey vout with the second pubkey
-					testVouts.push_back(std::make_pair(MakeTokensCC1vout(evalCode1, evalCode2, tx.vout[v].nValue, voutPubkeys[1]), std::string("three-eval cc1 pk[1]")));
+					testVouts.push_back(std::make_pair(MakeTokensCC1vout(evalCode1, evalCode2, tx.vout[v].nValue, voutPubkeys[1]), std::string("one..three-eval cc1 pk[1]")));
                     if (evalCode2 != 0) {
                         // also check in backward evalcode order:
                         // check dual/three eval 1of2 pubkeys vout
@@ -510,7 +509,7 @@ bool TokensExactAmounts(bool goDeeper, struct CCcontract_info *cp, int64_t &inpu
                 if ((eval && eval->GetTxUnconfirmed(tx.vin[i].prevout.hash, vinTx, hashBlock) == 0) || (!eval && !myGetTransaction(tx.vin[i].prevout.hash, vinTx, hashBlock)))
                 {
                     LOGSTREAM((char *)"cctokens", CCLOG_INFO, stream << indentStr << "TokensExactAmounts() cannot read vintx for i." << i << " numvins." << numvins << std::endl);
-                    return (!eval) ? false : eval->Invalid("always should find vin tx, but didnt");
+                    return eval ? eval->Invalid("could not load vin tx") : false;
                 }
 
                 LOGSTREAM((char *)"cctokens", CCLOG_DEBUG2, stream << indentStr << "TokensExactAmounts() checking vintx.vout for tx.vin[" << i << "] nValue=" << vinTx.vout[tx.vin[i].prevout.n].nValue << std::endl);
@@ -549,7 +548,7 @@ bool TokensExactAmounts(bool goDeeper, struct CCcontract_info *cp, int64_t &inpu
         if (inputs != outputs) {
             if (tx.GetHash() != reftokenid)
                 LOGSTREAM((char *)"cctokens", CCLOG_DEBUG1, stream << indentStr << "TokensExactAmounts() found unequal token cc inputs=" << inputs << " vs cc outputs=" << outputs << " for txid=" << tx.GetHash().GetHex() << " and this is not the create tx" << std::endl);
-            return false;  // do not call eval->Invalid() here!
+            return false;  // do not return invalid here, because if this func is called for a vintx it would be not an error but warning that this vintx will be skipped
         }
         else
             return true;
@@ -565,31 +564,26 @@ bool TokensExactAmounts(bool goDeeper, struct CCcontract_info *cp, int64_t &inpu
 
             if (tx.vout.size() == 0 || DecodeTokenCreateOpRet(tx.vout.back().scriptPubKey, vorigPubkey, dummyName, dummyDescription, oprets) == 0) {
                 LOGSTREAM("cctokens", CCLOG_INFO, stream << indentStr << "TokensExactAmounts() could not decode create opret" << " for tokenbase=" << reftokenid.GetHex() << std::endl);
-                return false;
+                return eval ? eval->Invalid("could not decode create opret for tokenbase tx") : false;
             }
 
             CPubKey origPubkey = pubkey2pk(vorigPubkey);
 
-            /* int64_t ccOutputs = 0;
+            /* do not need this because it is more relaxed check is implemented 
+            int64_t ccOutputs = 0;
             for (auto vout : tx.vout)
                 if (vout.scriptPubKey.IsPayToCryptoCondition()  
                     && !IsTokenMarkerVout(vout))  // should not be marker here
                     ccOutputs += vout.nValue;  */
 
             int64_t normalInputs = TotalPubkeyNormalInputs(tx, origPubkey);  // check if normal inputs are really signed by originator pubkey (someone not cheating with originator pubkey)
-            LOGSTREAM("cctokens", CCLOG_DEBUG2, stream << indentStr << "TokensExactAmounts() normalInputs=" << normalInputs << /*" ccOutputs=" << ccOutputs <<*/ " for tokenbase=" << reftokenid.GetHex() << std::endl);
-
             // require at least some normal inputs must be from orig pubkey (i.e. token not faked by another pubkey)
-            if (normalInputs > 0) {
-                LOGSTREAM("cctokens", CCLOG_DEBUG2, stream << indentStr << "TokensExactAmounts() assured tokenbase funded from orig pubkey for tokenid=" << reftokenid.GetHex() << std::endl);
-                return true;
-            }
-            else    {
+            if (normalInputs == 0) {
                 LOGSTREAM("cctokens", CCLOG_INFO, stream << indentStr << "TokensExactAmounts() tokenbase invalid: no originator pubkey normal inputs" << " for tokenbase=" << reftokenid.GetHex() << std::endl);
-                return false;
+                return eval ? eval->Invalid("no originator pubkey normal inputs for tokenbase tx") : false;
             }
+            LOGSTREAM("cctokens", CCLOG_DEBUG2, stream << indentStr << "TokensExactAmounts() assured tokenbase funded from orig pubkey for tokenid=" << reftokenid.GetHex() << std::endl);
         }
-
         return true;
     }
 }
