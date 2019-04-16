@@ -3744,7 +3744,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     {
       // Update the notary pay with the latest payment.
       pindex->nNotaryPay = pindex->pprev->nNotaryPay + notarypaycheque;
-      fprintf(stderr, "total notary pay.%li\n", pindex->nNotaryPay);
+      //fprintf(stderr, "total notary pay.%li\n", pindex->nNotaryPay);
     }
     return true;
 }

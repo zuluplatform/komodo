@@ -172,7 +172,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "assetchainproof", 1},
     { "crosschainproof", 1},
     { "getproofroot", 2},
-    //{ "height_MoM", 1},
+    { "height_MoM", 1},
     { "calc_MoM", 2},
     { "migrate_completeimporttransaction", 1}
 };

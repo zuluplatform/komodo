@@ -22,8 +22,7 @@ NotarisationsInBlock ScanBlockNotarisations(const CBlock &block, int nHeight)
     CrosschainAuthority auth_STAKED;
     int timestamp = block.nTime;
 
-    for (unsigned int i = 0; i < block.vtx.size(); i++) 
-    {
+    for (unsigned int i = 0; i < block.vtx.size(); i++) {
         CTransaction tx = block.vtx[i];
 
         NotarisationData data;
@@ -35,37 +34,32 @@ NotarisationsInBlock ScanBlockNotarisations(const CBlock &block, int nHeight)
         //printf("Checked notarisation data for %s \n",data.symbol);
         int authority = GetSymbolAuthority(data.symbol);
 
-        if (authority == CROSSCHAIN_KOMODO) 
-        {
+        if (authority == CROSSCHAIN_KOMODO) {
             if (!eval->CheckNotaryInputs(tx, nHeight, block.nTime))
                 continue;
-        }
-        else if (authority == CROSSCHAIN_STAKED) 
-        {
-            if ( is_STAKED(data.symbol) == 255 )
-            {
-                // this chain is banned... we will discard its notarisation. 
-                continue;
-            }
+            //printf("Authorised notarisation data for %s \n",data.symbol);
+        } else if (authority == CROSSCHAIN_STAKED) {
             // We need to create auth_STAKED dynamically here based on timestamp
             int32_t staked_era = STAKED_era(timestamp);
-            if ( staked_era == 0 ) 
-            {
-                // this is an ERA GAP, so we will ignore this notarization
-                continue;
-            } 
-            // pass era slection off to notaries_staked.cpp file
-            auth_STAKED = Choose_auth_STAKED(staked_era);
+            if (staked_era == 0) {
+              // this is an ERA GAP, so we will ignore this notarization
+              continue;
+             if ( is_STAKED(data.symbol) == 255 )
+              // this chain is banned... we will discard its notarisation. 
+              continue;
+            } else {
+              // pass era slection off to notaries_staked.cpp file
+              auth_STAKED = Choose_auth_STAKED(staked_era);
+            }
             if (!CheckTxAuthority(tx, auth_STAKED))
                 continue;
         }
-        //printf("Authorised notarisation data for %s \n",data.symbol);
-        if (parsed) 
-        {
+
+        if (parsed) {
             vNotarisations.push_back(std::make_pair(tx.GetHash(), data));
-            printf("Parsed a notarisation for: %s, txid:%s, ccid:%i, momdepth:%i MoM: %s\n",
-                  data.symbol, tx.GetHash().GetHex().data(), data.ccId, data.MoMDepth, data.MoM.GetHex().data());
-            if (!data.MoMoM.IsNull()) printf("MoMoM: %s\n", data.MoMoM.GetHex().data());
+            //printf("Parsed a notarisation for: %s, txid:%s, ccid:%i, momdepth:%i\n",
+            //      data.symbol, tx.GetHash().GetHex().data(), data.ccId, data.MoMDepth);
+            if (!data.MoMoM.IsNull()) printf("MoMoM:%s\n", data.MoMoM.GetHex().data());
         } else
             LogPrintf("WARNING: Couldn't parse notarisation for tx: %s at height %i\n",
                     tx.GetHash().GetHex().data(), nHeight);
@@ -123,20 +117,17 @@ void EraseBackNotarisations(const NotarisationsInBlock notarisations, CDBBatch &
 int ScanNotarisationsDB(int height, std::string symbol, int scanLimitBlocks, Notarisation& out)
 {
     if (height < 0 || height > chainActive.Height())
-        return(0);
+        return false;
 
-    for (int i=0; i<scanLimitBlocks; i++) 
-    {
+    for (int i=0; i<scanLimitBlocks; i++) {
         if (i > height) break;
         NotarisationsInBlock notarisations;
         uint256 blockHash = *chainActive[height-i]->phashBlock;
         if (!GetBlockNotarisations(blockHash, notarisations))
             continue;
 
-        BOOST_FOREACH(Notarisation& nota, notarisations) 
-        {
-            if (strcmp(nota.second.symbol, symbol.data()) == 0) 
-            {
+        BOOST_FOREACH(Notarisation& nota, notarisations) {
+            if (strcmp(nota.second.symbol, symbol.data()) == 0) {
                 out = nota;
                 return height-i;
                 //if ( nota.second.MoMoM.GetHex() == "0000000000000000000000000000000000000000000000000000000000000000" )

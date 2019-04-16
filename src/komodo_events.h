@@ -37,7 +37,7 @@ struct komodo_event *komodo_eventadd(struct komodo_state *sp,int32_t height,char
     return(ep);
 }
 
-void komodo_eventadd_notarized(struct komodo_state *sp,char *symbol,int32_t height,char *dest,uint256 notarized_hash,uint256 notarized_desttxid,int32_t notarizedheight) //,uint256 MoM,int32_t MoMdepth)
+void komodo_eventadd_notarized(struct komodo_state *sp,char *symbol,int32_t height,char *dest,uint256 notarized_hash,uint256 notarized_desttxid,int32_t notarizedheight,uint256 MoM,int32_t MoMdepth)
 {
     static uint32_t counter; int32_t verified=0; char *coin; struct komodo_event_notarized N;
     coin = (ASSETCHAINS_SYMBOL[0] == 0) ? (char *)"KMD" : ASSETCHAINS_SYMBOL;
@@ -54,12 +54,12 @@ void komodo_eventadd_notarized(struct komodo_state *sp,char *symbol,int32_t heig
         N.blockhash = notarized_hash;
         N.desttxid = notarized_desttxid;
         N.notarizedheight = notarizedheight;
-        //N.MoM = MoM;
-        //N.MoMdepth = MoMdepth;
+        N.MoM = MoM;
+        N.MoMdepth = MoMdepth;
         strncpy(N.dest,dest,sizeof(N.dest)-1);
         komodo_eventadd(sp,height,symbol,KOMODO_EVENT_NOTARIZED,(uint8_t *)&N,sizeof(N));
         if ( sp != 0 )
-            komodo_notarized_update(sp,height,notarizedheight,notarized_hash,notarized_desttxid); //,MoM,MoMdepth);
+            komodo_notarized_update(sp,height,notarizedheight,notarized_hash,notarized_desttxid,MoM,MoMdepth);
     }
 }
 

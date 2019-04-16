@@ -403,7 +403,7 @@ int32_t komodo_chosennotary(int32_t *notaryidp,int32_t height,uint8_t *pubkey33,
 
 //struct komodo_state *komodo_stateptr(char *symbol,char *dest);
 
-/*struct notarized_checkpoint *komodo_npptr_for_height(int32_t height, int *idx)
+struct notarized_checkpoint *komodo_npptr_for_height(int32_t height, int *idx)
 {
     char symbol[KOMODO_ASSETCHAIN_MAXLEN],dest[KOMODO_ASSETCHAIN_MAXLEN]; int32_t i; struct komodo_state *sp; struct notarized_checkpoint *np = 0;
     if ( (sp= komodo_stateptr(symbol,dest)) != 0 )
@@ -433,33 +433,11 @@ struct notarized_checkpoint *komodo_npptr_at(int idx)
         if (idx < sp->NUM_NPOINTS)
             return &sp->NPOINTS[idx];
     return(0);
-} */
+}
 
 int32_t komodo_prevMoMheight(int height)
 {
-    int limit = 1440;
-    // KMD and ac_cc=0/1 has no MoM height! 
-    if ( ASSETCHAINS_SYMBOL[0] == 0 || ASSETCHAINS_CC < 2 )
-        return(0);
-    // scan back 100 maximum notarizations to get prev MoM height. 
-    for (int i = 0; i < 100; i++) 
-    {
-        if ( height < 0 )
-            return(0);
-        Notarisation nota;
-        int matchedHeight = ScanNotarisationsDB(height, ASSETCHAINS_SYMBOL, limit, nota);
-        if ( matchedHeight != 0 )
-        {
-            if ( nota.second.MoM.IsNull() )
-                height = matchedHeight-1;
-            else 
-                return(nota.second.height);
-        }
-    }
-    
-    //fprintf(stderr, "MoM.%s MoMdepth.%i height.%i \n",nota.second.MoM.ToString().c_str(), nota.second.MoMDepth, nota.second.height);
-    /*static uint256 zero;
-    // this is wrong, it has to use the notarization DB to be accurate!
+    static uint256 zero;
     char symbol[KOMODO_ASSETCHAIN_MAXLEN],dest[KOMODO_ASSETCHAIN_MAXLEN]; int32_t i; struct komodo_state *sp; struct notarized_checkpoint *np = 0;
     if ( (sp= komodo_stateptr(symbol,dest)) != 0 )
     {
@@ -467,13 +445,10 @@ int32_t komodo_prevMoMheight(int height)
         {
             np = &sp->NPOINTS[i];
             if ( np->MoM != zero )
-            {
-                fprintf(stderr, "prev MoM height current used.%i\n", np->notarized_height);
                 return(np->notarized_height);
-            }
         }
-    } */
-    return(0); 
+    }
+    return(0);
 }
 
 int32_t komodo_notarized_height(int32_t *prevMoMheightp,uint256 *hashp,uint256 *txidp)
@@ -510,7 +485,7 @@ int32_t komodo_dpowconfs(int32_t txheight,int32_t numconfs)
     return(numconfs);
 }
 
-/*int32_t komodo_MoMdata(int32_t *notarized_htp,uint256 *MoMp,uint256 *kmdtxidp,int32_t height,uint256 *MoMoMp,int32_t *MoMoMoffsetp,int32_t *MoMoMdepthp,int32_t *kmdstartip,int32_t *kmdendip)
+int32_t komodo_MoMdata(int32_t *notarized_htp,uint256 *MoMp,uint256 *kmdtxidp,int32_t height,uint256 *MoMoMp,int32_t *MoMoMoffsetp,int32_t *MoMoMdepthp,int32_t *kmdstartip,int32_t *kmdendip)
 {
     struct notarized_checkpoint *np = 0;
     if ( (np= komodo_npptr(height)) != 0 )
@@ -530,7 +505,7 @@ int32_t komodo_dpowconfs(int32_t txheight,int32_t numconfs)
     memset(MoMoMp,0,sizeof(*MoMoMp));
     memset(kmdtxidp,0,sizeof(*kmdtxidp));
     return(0);
-}*/
+}
 
 int32_t komodo_notarizeddata(int32_t nHeight,uint256 *notarized_hashp,uint256 *notarized_desttxidp)
 {
@@ -588,7 +563,7 @@ int32_t komodo_notarizeddata(int32_t nHeight,uint256 *notarized_hashp,uint256 *n
     return(0);
 }
 
-void komodo_notarized_update(struct komodo_state *sp,int32_t nHeight,int32_t notarized_height,uint256 notarized_hash,uint256 notarized_desttxid) //, uint256 MoM,int32_t MoMdepth)
+void komodo_notarized_update(struct komodo_state *sp,int32_t nHeight,int32_t notarized_height,uint256 notarized_hash,uint256 notarized_desttxid,uint256 MoM,int32_t MoMdepth)
 {
     struct notarized_checkpoint *np;
     if ( notarized_height >= nHeight )
@@ -606,8 +581,8 @@ void komodo_notarized_update(struct komodo_state *sp,int32_t nHeight,int32_t not
     sp->NOTARIZED_HEIGHT = np->notarized_height = notarized_height;
     sp->NOTARIZED_HASH = np->notarized_hash = notarized_hash;
     sp->NOTARIZED_DESTTXID = np->notarized_desttxid = notarized_desttxid;
-    //sp->MoM = np->MoM = MoM;
-    //sp->MoMdepth = np->MoMdepth = MoMdepth;
+    sp->MoM = np->MoM = MoM;
+    sp->MoMdepth = np->MoMdepth = MoMdepth;
     portable_mutex_unlock(&komodo_mutex);
 }
 
@@ -635,6 +610,6 @@ void komodo_init(int32_t height)
         //for (i=0; i<sizeof(Minerids); i++)
         //    Minerids[i] = -2;
         didinit = 1;
-        komodo_stateupdate(0,0,0,0,zero,0,0,0,0,0,0,0,0,0,0); //,zero,0);
+        komodo_stateupdate(0,0,0,0,zero,0,0,0,0,0,0,0,0,0,0,zero,0);
     }
 }
