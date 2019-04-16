@@ -472,8 +472,12 @@ bool Eval::ImportCoin(const std::vector<uint8_t> params, const CTransaction &imp
 
         cpTokens = CCinit(&CCtokens_info, EVAL_TOKENS);
 
-        if (DecodeTokenOpRet(importTx.vout.back().scriptPubKey, evalCodeInOpret, tokenid, voutTokenPubkeys, oprets) == 0)  
-            return Invalid("cannot-decode-import-tx-token-opret");
+        tokenid = importTx.GetHash();
+
+        vscript_t vorigpubkey;
+        std::string name, desc;
+        if (importTx.vout.size() == 0 || DecodeTokenCreateOpRet(importTx.vout.back().scriptPubKey, vorigpubkey, name, desc) != 'c')
+            return Invalid("cannot-decode-token-import-tx");
 
         uint8_t nonfungibleEvalCode = EVAL_TOKENS; // init to no non-fungibles
         GetOpretBlob(oprets, OPRETID_NONFUNGIBLEDATA, vnonfungibleOpret);
@@ -499,7 +503,8 @@ bool Eval::ImportCoin(const std::vector<uint8_t> params, const CTransaction &imp
         CAmount ccImportOutputs = 0;
         for (auto v : importTx.vout)  
             if (v.scriptPubKey.IsPayToCryptoCondition() && 
-                !IsTokenMarkerVout(v))  // should not be marker here
+                !IsTokenMarkerVout(v) && // should not be marker here
+                CTxOut(v.nValue, v.scriptPubKey) == MakeTokensCC1vout(nonfungibleEvalCode, v.nValue, pubkey2pk(vorigpubkey)) )  // sent to dest pubkey
                 ccImportOutputs += v.nValue;
 
         if(ccBurnOutputs != ccImportOutputs )
@@ -522,31 +527,28 @@ bool Eval::ImportCoin(const std::vector<uint8_t> params, const CTransaction &imp
         std::vector<std::pair<uint8_t, vscript_t>>  oprets;
         uint8_t evalCodeInOpret;
         std::vector<CPubKey> voutTokenPubkeys;
-        if (burnTx.vout.size() > 0 && DecodeTokenOpRet(burnTx.vout.back().scriptPubKey, evalCodeInOpret, sourceTokenId, voutTokenPubkeys, oprets) == 0)
+        if (burnTx.vout.size() > 0 && DecodeTokenOpRet(burnTx.vout.back().scriptPubKey, evalCodeInOpret, sourceTokenId, voutTokenPubkeys, oprets) != 't')
             return Invalid("cannot-decode-burn-tx-token-opret");
 
-        if (sourceTokenId != tokenbaseTx.GetHash())              // check tokenid in burn tx opret maches the passed tokenbase tx (to prevent cheating by importing user)
+        if (sourceTokenId != tokenbaseTx.GetHash())              // check tokenid in burn tx opret matches the passed tokenbase tx (to prevent cheating by importing user)
             return Invalid("incorrect-token-creation-tx-passed");
 
-        std::vector<std::pair<uint8_t, vscript_t>>  opretsSrc;
         vscript_t vorigpubkeySrc;
         std::string nameSrc, descSrc;
-        if (DecodeTokenCreateOpRet(tokenbaseTx.vout.back().scriptPubKey, vorigpubkeySrc, nameSrc, descSrc, opretsSrc) == 0) 
+        if (DecodeTokenCreateOpRet(tokenbaseTx.vout.back().scriptPubKey, vorigpubkeySrc, nameSrc, descSrc) != 'c') 
             return Invalid("cannot-decode-token-creation-tx");
 
-        std::vector<std::pair<uint8_t, vscript_t>>  opretsImport;
         vscript_t vorigpubkeyImport;
         std::string nameImport, descImport;
-        if (importTx.vout.size() == 0 || DecodeTokenCreateOpRet(importTx.vout.back().scriptPubKey, vorigpubkeySrc, nameSrc, descSrc, opretsImport) == 0)
+        if (importTx.vout.size() == 0 || DecodeTokenCreateOpRet(importTx.vout.back().scriptPubKey, vorigpubkeyImport, nameImport, descImport) != 'c')
             return Invalid("cannot-decode-token-import-tx");
 
         // check that name,pubkey,description in import tx correspond ones in token creation tx in the source chain:
-        if (vorigpubkeySrc != vorigpubkeyImport ||
+        if (/*vorigpubkeySrc != vorigpubkeyImport ||  <-- they are different, in import tx it is the dest pubkey now  */
             nameSrc != nameImport ||
             descSrc != descImport)
             return Invalid("import-tx-token-params-incorrect");
     }
-
 
     // Check burntx shows correct outputs hash
     if (payoutsHash != SerializeHash(payouts))
@@ -617,7 +619,7 @@ bool Eval::ImportCoin(const std::vector<uint8_t> params, const CTransaction &imp
     // return Invalid("test-invalid");
     LOGSTREAM("importcoin", CCLOG_DEBUG2, stream << "Valid import tx! txid=" << importTx.GetHash().GetHex() << std::endl);
     
-    /*if (vimportOpret.begin()[0] == EVAL_TOKENS)
+/*    if (!tokenid.IsNull())
         return Invalid("test-invalid-tokens-are-good!!");
     else
         return Invalid("test-invalid-coins-are-good!!");*/
