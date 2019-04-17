@@ -13,15 +13,19 @@
  *                                                                            *
  ******************************************************************************/
 
+#include "CCLABS.h"
 
-#ifndef CC_TRIGGERS_H
-#define CC_TRIGGERS_H
+/*
+LABS CC... For bounties crypto condition development
+Bounties must have way to submit claim and then be tagged by MofN notary pubkeys to release funds.
+Must also get funds from somewhere or make sure that funds it creates from thin air are globally limited per some 
+amount of blocks. 
+*/
 
-#include "CCinclude.h"
 
-bool TriggersValidate(struct CCcontract_info *cp,Eval* eval,const CTransaction &tx, uint32_t nIn);
 
-// CCcustom
-UniValue TriggersInfo();
-
-#endif
+// tx validation
+bool LABSValidate(struct CCcontract_info *cp, Eval* eval, const CTransaction &tx, uint32_t nIn)
+{
+    return eval->Invalid("no contract made yet");
+}

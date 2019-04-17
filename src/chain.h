@@ -3,6 +3,21 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+/******************************************************************************
+ * Copyright © 2014-2019 The SuperNET Developers.                             *
+ *                                                                            *
+ * See the AUTHORS, DEVELOPER-AGREEMENT and LICENSE files at                  *
+ * the top-level directory of this distribution for the individual copyright  *
+ * holder information and the developer policies on copyright and licensing.  *
+ *                                                                            *
+ * Unless otherwise agreed in a custom licensing agreement, no part of the    *
+ * SuperNET software, including this file may be copied, modified, propagated *
+ * or distributed except according to the terms contained in the LICENSE file *
+ *                                                                            *
+ * Removal or modification of this copyright notice is prohibited.            *
+ *                                                                            *
+ ******************************************************************************/
+
 #ifndef BITCOIN_CHAIN_H
 #define BITCOIN_CHAIN_H
 
@@ -87,6 +102,9 @@ enum BlockStatus: uint32_t {
     //! Scripts & signatures ok. Implies all parents are also at least SCRIPTS.
     BLOCK_VALID_SCRIPTS      =    5,
 
+    // flag to check if contextual check block has passed in Accept block, if it has not check at connect block. 
+    BLOCK_VALID_CONTEXT      =    6,
+    
     //! All validity bits.
     BLOCK_VALID_MASK         =   BLOCK_VALID_HEADER | BLOCK_VALID_TREE | BLOCK_VALID_TRANSACTIONS |
                                  BLOCK_VALID_CHAIN | BLOCK_VALID_SCRIPTS,
@@ -100,6 +118,7 @@ enum BlockStatus: uint32_t {
     BLOCK_FAILED_MASK        =   BLOCK_FAILED_VALID | BLOCK_FAILED_CHILD,
 
     BLOCK_ACTIVATES_UPGRADE  =   128, //! block activates a network upgrade
+    BLOCK_IN_TMPFILE = 256 
 };
 
 //! Short-hand for the highest consensus validity we implement.
@@ -111,8 +130,8 @@ class CBlockIndex;
 // This class provides an accumulator for both the chainwork and the chainPOS value
 // CChainPower's can be compared, and the comparison ensures that work and proof of stake power
 // are both used equally to determine which chain has the most work. This makes an attack
-// that involves mining in secret completely ineffective, even before dPOW, unless a large part 
-// of the staking supply is also controlled. It also enables a faster deterministic convergence, 
+// that involves mining in secret completely ineffective, even before dPOW, unless a large part
+// of the staking supply is also controlled. It also enables a faster deterministic convergence,
 // aided by both POS and POW.
 class CChainPower
 {
@@ -125,7 +144,7 @@ class CChainPower
         CChainPower(CBlockIndex *pblockIndex);
         CChainPower(CBlockIndex *pblockIndex, const arith_uint256 &stake, const arith_uint256 &work);
         CChainPower(int32_t height) : nHeight(height), chainStake(0), chainWork(0) {}
-        CChainPower(int32_t height, const arith_uint256 &stake, const arith_uint256 &work) : 
+        CChainPower(int32_t height, const arith_uint256 &stake, const arith_uint256 &work) :
                     nHeight(height), chainStake(stake), chainWork(work) {}
 
         CChainPower &operator=(const CChainPower &chainPower)
@@ -219,7 +238,7 @@ public:
     CBlockIndex* pskip;
 
     //! height of the entry in the chain. The genesis block has height 0
-    int64_t newcoins,zfunds,sproutfunds; int8_t segid; // jl777 fields
+    int64_t newcoins,zfunds,sproutfunds,nNotaryPay; int8_t segid; // jl777 fields
     //! Which # file this block is stored in (blk?????.dat)
     int nFile;
 
@@ -284,12 +303,13 @@ public:
 
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     uint32_t nSequenceId;
-    
+
     void SetNull()
     {
         phashBlock = NULL;
         newcoins = zfunds = 0;
         segid = -2;
+        nNotaryPay = 0;
         pprev = NULL;
         pskip = NULL;
         nFile = 0;
@@ -335,7 +355,7 @@ public:
         nSolution      = block.nSolution;
     }
 
-    int32_t SetHeight(int32_t height)
+    void SetHeight(int32_t height)
     {
         this->chainPower.nHeight = height;
     }
@@ -513,6 +533,10 @@ public:
         READWRITE(nNonce);
         READWRITE(nSolution);
 
+        // LABS extra index values.
+        READWRITE(segid);
+        READWRITE(nNotaryPay);
+
         // Only read/write nSproutValue if the client version used to create
         // this index was storing them.
         if ((s.GetType() & SER_DISK) && (nVersion >= SPROUT_VALUE_VERSION)) {
@@ -568,7 +592,7 @@ public:
     CBlockIndex *Tip() const {
         return vChain.size() > 0 ? vChain[vChain.size() - 1] : NULL;
     }
-    
+
     /** Returns the last tip of the chain, or NULL if none. */
     CBlockIndex *LastTip() const {
         return vChain.size() > 0 ? lastTip : NULL;
